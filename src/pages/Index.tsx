@@ -1,31 +1,25 @@
 import { useState, useEffect } from 'react';
-import { Plus, ClipboardCheck, Building2, ArrowLeft } from 'lucide-react';
+import { Plus, FolderOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Project, AuditResult, Decision } from '@/types';
-import { loadProjects, saveProjects, addDecisionToProject, updateProjectAfterAudit } from '@/lib/projects';
-import { CreateProjectDialog } from '@/components/CreateProjectDialog';
+import { Project, Decision } from '@/types';
+import { loadProjects, saveProjects, addDecisionToProject } from '@/lib/projects';
 import { ProjectCard } from '@/components/ProjectCard';
-import { AuditQuestionnaire } from '@/components/AuditQuestionnaire';
-import { AuditResults } from '@/components/AuditResults';
+import { ProjectCreationWizard } from '@/components/ProjectCreationWizard';
 import { ProjectDetail } from '@/components/ProjectDetail';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 
-type View = 'dashboard' | 'audit' | 'results' | 'detail';
+type ViewState = 'dashboard' | 'create' | 'detail';
 
 const Index = () => {
   const [projects, setProjects] = useState<Project[]>([]);
+  const [view, setView] = useState<ViewState>('dashboard');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [view, setView] = useState<View>('dashboard');
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const { toast } = useToast();
 
-  // Load projects on mount
   useEffect(() => {
-    setProjects(loadProjects());
+    const loaded = loadProjects();
+    setProjects(loaded);
   }, []);
 
-  // Save projects when they change
   useEffect(() => {
     if (projects.length > 0) {
       saveProjects(projects);
@@ -35,223 +29,110 @@ const Index = () => {
   const handleProjectCreated = (project: Project) => {
     setProjects((prev) => [...prev, project]);
     setSelectedProject(project);
-    setView('audit');
-    toast({
-      title: 'Projet créé',
-      description: "Répondez aux questions pour établir le score initial.",
+    setView('detail');
+    toast.success('Projet créé', {
+      description: `Score initial: ${project.initialScore}/100`,
     });
   };
 
-  const handleProjectClick = (project: Project) => {
+  const handleProjectSelect = (project: Project) => {
     setSelectedProject(project);
-    if (project.auditResult) {
-      setView('detail');
-    } else {
-      setView('audit');
-    }
-  };
-
-  const handleAuditComplete = (result: AuditResult) => {
-    if (!selectedProject) return;
-
-    const updatedProject = updateProjectAfterAudit({ 
-      ...selectedProject, 
-      auditResult: result,
-      currentScore: result.score,
-      currentRiskLevel: result.riskLevel,
-    });
-    
-    setProjects((prev) =>
-      prev.map((p) => (p.id === selectedProject.id ? updatedProject : p))
-    );
-    setSelectedProject(updatedProject);
-    setView('results');
-    toast({
-      title: 'Audit terminé',
-      description: `Score initial : ${result.score}%`,
-    });
+    setView('detail');
   };
 
   const handleDecisionAdded = (decision: Decision) => {
     if (!selectedProject) return;
 
     const updatedProject = addDecisionToProject(selectedProject, decision);
-    setProjects((prev) =>
-      prev.map((p) => (p.id === selectedProject.id ? updatedProject : p))
-    );
+
+    setProjects((prev) => prev.map((p) => (p.id === updatedProject.id ? updatedProject : p)));
     setSelectedProject(updatedProject);
-    
-    const impactText = decision.scoreImpact > 0 
-      ? `+${decision.scoreImpact} points` 
-      : `${decision.scoreImpact} points`;
-    
-    toast({
-      title: 'Décision ajoutée',
-      description: `Impact : ${impactText} — Score actuel : ${updatedProject.currentScore}%`,
+
+    toast.success('Décision ajoutée', {
+      description: `Impact sur le score: ${decision.scoreImpact >= 0 ? '+' : ''}${decision.scoreImpact}`,
     });
   };
 
-  const handleContinueToProject = () => {
-    setView('detail');
-  };
-
   const handleBackToDashboard = () => {
-    setSelectedProject(null);
     setView('dashboard');
+    setSelectedProject(null);
   };
 
   // Dashboard view
   if (view === 'dashboard') {
     return (
       <div className="min-h-screen bg-background">
-        {/* Header */}
-        <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-          <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center">
-                <ClipboardCheck className="h-5 w-5 text-primary-foreground" />
-              </div>
-              <div>
-                <h1 className="font-display text-xl font-semibold">Traçabilité Chantier</h1>
-                <p className="text-xs text-muted-foreground">Score de risque juridique en temps réel</p>
-              </div>
-            </div>
-            <Button onClick={() => setShowCreateDialog(true)}>
+        <div className="max-w-6xl mx-auto px-4 py-8">
+          {/* Header */}
+          <header className="mb-12">
+            <h1 className="font-display text-3xl md:text-4xl text-foreground mb-2">
+              Traçabilité Chantier
+            </h1>
+            <p className="text-muted-foreground">
+              Maîtrisez le risque juridique de vos projets
+            </p>
+          </header>
+
+          {/* Action bar */}
+          <div className="flex justify-between items-center mb-8">
+            <h2 className="font-display text-xl text-foreground">
+              Mes projets
+            </h2>
+            <Button onClick={() => setView('create')}>
               <Plus className="h-4 w-4 mr-2" />
               Nouveau projet
             </Button>
           </div>
-        </header>
 
-        {/* Main content */}
-        <main className="container mx-auto px-4 py-8">
+          {/* Projects grid */}
           {projects.length === 0 ? (
-            <Card className="p-12 text-center">
-              <div className="max-w-sm mx-auto space-y-4">
-                <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
-                  <Building2 className="h-8 w-8 text-primary" />
-                </div>
-                <div className="space-y-2">
-                  <h2 className="font-display text-xl font-semibold">Aucun projet</h2>
-                  <p className="text-muted-foreground text-sm">
-                    Créez votre premier projet pour évaluer et suivre sa traçabilité juridique en temps réel.
-                  </p>
-                </div>
-                <Button onClick={() => setShowCreateDialog(true)} className="mt-4">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Créer un projet
-                </Button>
-              </div>
-            </Card>
+            <div className="text-center py-16 bg-card border border-border rounded-lg">
+              <FolderOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="font-display text-lg text-foreground mb-2">
+                Aucun projet
+              </h3>
+              <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                Créez votre premier projet pour commencer à suivre sa traçabilité juridique.
+              </p>
+              <Button onClick={() => setView('create')}>
+                <Plus className="h-4 w-4 mr-2" />
+                Créer un projet
+              </Button>
+            </div>
           ) : (
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="font-display text-lg font-medium">
-                  Vos projets ({projects.length})
-                </h2>
-              </div>
-              <div className="grid gap-4">
-                {projects.map((project) => (
-                  <ProjectCard
-                    key={project.id}
-                    project={project}
-                    onClick={() => handleProjectClick(project)}
-                  />
-                ))}
-              </div>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {projects.map((project) => (
+                <ProjectCard
+                  key={project.id}
+                  project={project}
+                  onClick={() => handleProjectSelect(project)}
+                />
+              ))}
             </div>
           )}
-        </main>
-
-        <CreateProjectDialog
-          open={showCreateDialog}
-          onOpenChange={setShowCreateDialog}
-          onProjectCreated={handleProjectCreated}
-        />
+        </div>
       </div>
     );
   }
 
-  // Audit questionnaire view
-  if (view === 'audit' && selectedProject) {
+  // Creation wizard
+  if (view === 'create') {
     return (
-      <div className="min-h-screen bg-background">
-        <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-          <div className="container mx-auto px-4 py-4">
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" onClick={handleBackToDashboard}>
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-              <div>
-                <h1 className="font-display text-lg font-semibold">{selectedProject.name}</h1>
-                <p className="text-xs text-muted-foreground">Audit initial de traçabilité</p>
-              </div>
-            </div>
-          </div>
-        </header>
-        <main className="container mx-auto px-4 py-8 max-w-2xl">
-          <AuditQuestionnaire
-            onComplete={handleAuditComplete}
-            onCancel={handleBackToDashboard}
-          />
-        </main>
-      </div>
-    );
-  }
-
-  // Results view (after initial audit)
-  if (view === 'results' && selectedProject) {
-    return (
-      <div className="min-h-screen bg-background">
-        <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-          <div className="container mx-auto px-4 py-4">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center">
-                <ClipboardCheck className="h-5 w-5 text-primary-foreground" />
-              </div>
-              <div>
-                <h1 className="font-display text-xl font-semibold">Résultats de l'audit</h1>
-                <p className="text-xs text-muted-foreground">{selectedProject.name}</p>
-              </div>
-            </div>
-          </div>
-        </header>
-        <main className="container mx-auto px-4 py-8 max-w-3xl">
-          <AuditResults 
-            project={selectedProject} 
-            onBack={handleBackToDashboard}
-            onContinueToProject={handleContinueToProject}
-          />
-        </main>
-      </div>
+      <ProjectCreationWizard
+        onComplete={handleProjectCreated}
+        onCancel={() => setView('dashboard')}
+      />
     );
   }
 
   // Project detail view
   if (view === 'detail' && selectedProject) {
     return (
-      <div className="min-h-screen bg-background">
-        <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-          <div className="container mx-auto px-4 py-4">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center">
-                <ClipboardCheck className="h-5 w-5 text-primary-foreground" />
-              </div>
-              <div>
-                <h1 className="font-display text-xl font-semibold">Traçabilité Chantier</h1>
-                <p className="text-xs text-muted-foreground">Suivi du projet</p>
-              </div>
-            </div>
-          </div>
-        </header>
-        <main className="container mx-auto px-4 py-8 max-w-4xl">
-          <ProjectDetail
-            project={selectedProject}
-            onBack={handleBackToDashboard}
-            onDecisionAdded={handleDecisionAdded}
-          />
-        </main>
-      </div>
+      <ProjectDetail
+        project={selectedProject}
+        onBack={handleBackToDashboard}
+        onDecisionAdded={handleDecisionAdded}
+      />
     );
   }
 

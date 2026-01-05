@@ -1,4 +1,4 @@
-import { Decision, DecisionType, Project, RiskLevel, AuditResult } from '@/types';
+import { Decision, DecisionType, Project, RiskLevel } from '@/types';
 
 // Weight of each decision type (higher = more critical)
 export const DECISION_TYPE_WEIGHTS: Record<DecisionType, number> = {
@@ -23,47 +23,14 @@ export const calculateDecisionImpact = (decision: Omit<Decision, 'id' | 'created
   const weight = DECISION_TYPE_WEIGHTS[decision.type];
   let impact = 0;
 
-  // Well-documented decision = positive impact
-  // Poorly documented = negative impact
   const validationFactor = decision.hasWrittenValidation ? 1 : -1;
   const proofFactor = decision.hasProofAttached ? 0.5 : -0.5;
   
-  // Financial decisions without proper documentation are more risky
   const financialMultiplier = decision.hasFinancialImpact ? 1.5 : 1;
 
   impact = (validationFactor + proofFactor) * weight * financialMultiplier;
   
   return Math.round(impact);
-};
-
-// Calculate the current project score based on initial audit and all decisions
-export const calculateProjectScore = (project: Project): { score: number; riskLevel: RiskLevel } => {
-  // Start with initial audit score or 50 if no audit
-  const baseScore = project.auditResult?.score ?? 50;
-  
-  if (project.decisions.length === 0) {
-    return {
-      score: baseScore,
-      riskLevel: getScoreRiskLevel(baseScore),
-    };
-  }
-
-  // Calculate cumulative impact from decisions
-  const totalImpact = project.decisions.reduce((sum, d) => sum + d.scoreImpact, 0);
-  
-  // Normalize impact: each decision can affect score by up to ~5 points
-  const normalizedImpact = totalImpact / (project.decisions.length * 0.5);
-  
-  // Apply impact to base score
-  let finalScore = baseScore + normalizedImpact;
-  
-  // Clamp between 0 and 100
-  finalScore = Math.max(0, Math.min(100, Math.round(finalScore)));
-  
-  return {
-    score: finalScore,
-    riskLevel: getScoreRiskLevel(finalScore),
-  };
 };
 
 // Get risk level from score
@@ -77,7 +44,7 @@ export const getScoreRiskLevel = (score: number): RiskLevel => {
 export const getProblematicDecisions = (decisions: Decision[]): Decision[] => {
   return decisions
     .filter((d) => d.scoreImpact < 0)
-    .sort((a, b) => a.scoreImpact - b.scoreImpact); // Most negative first
+    .sort((a, b) => a.scoreImpact - b.scoreImpact);
 };
 
 // Get well-documented decisions
@@ -121,8 +88,7 @@ export const getRiskLevelDescription = (level: RiskLevel): string => {
   }
 };
 
-// Calculate score evolution (percentage change)
+// Calculate score evolution (percentage change from initial)
 export const calculateScoreEvolution = (project: Project): number => {
-  if (!project.auditResult) return 0;
-  return project.currentScore - project.auditResult.score;
+  return project.currentScore - project.initialScore;
 };
