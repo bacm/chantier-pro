@@ -1,16 +1,24 @@
-export interface Decision {
+export type RiskLevel = 'low' | 'medium' | 'high';
+export type AuditResponse = 'yes' | 'no' | 'na';
+
+export interface AuditQuestion {
   id: string;
-  content: string;
-  author: string;
-  createdAt: Date;
-  attachments: Attachment[];
+  category: string;
+  question: string;
+  riskWeight: number; // 1-3, higher = more critical
+  recommendation: string;
 }
 
-export interface Attachment {
-  id: string;
-  name: string;
-  type: 'photo' | 'document';
-  url?: string;
+export interface AuditAnswer {
+  questionId: string;
+  response: AuditResponse;
+}
+
+export interface AuditResult {
+  score: number; // 0-100
+  riskLevel: RiskLevel;
+  answeredAt: Date;
+  answers: AuditAnswer[];
 }
 
 export interface Project {
@@ -18,6 +26,7 @@ export interface Project {
   name: string;
   address: string;
   client: string;
+  projectType: 'individual' | 'tertiary' | 'renovation';
   createdAt: Date;
-  decisions: Decision[];
+  auditResult?: AuditResult;
 }

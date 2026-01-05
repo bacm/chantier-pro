@@ -1,4 +1,4 @@
-import { Project, Decision, Attachment } from '@/types';
+import { Project } from '@/types';
 
 // Generate unique IDs
 export const generateId = (): string => {
@@ -27,8 +27,20 @@ export const formatDateTime = (date: Date): string => {
   return `${formatDate(date)} à ${formatTime(date)}`;
 };
 
+// Get project type label
+export const getProjectTypeLabel = (type: Project['projectType']): string => {
+  switch (type) {
+    case 'individual':
+      return 'Maison individuelle';
+    case 'tertiary':
+      return 'Tertiaire';
+    case 'renovation':
+      return 'Rénovation';
+  }
+};
+
 // Local storage helpers
-const STORAGE_KEY = 'chantier-decisions-projects';
+const STORAGE_KEY = 'chantier-audit-projects';
 
 export const loadProjects = (): Project[] => {
   try {
@@ -38,10 +50,12 @@ export const loadProjects = (): Project[] => {
     return projects.map((p: any) => ({
       ...p,
       createdAt: new Date(p.createdAt),
-      decisions: p.decisions.map((d: any) => ({
-        ...d,
-        createdAt: new Date(d.createdAt),
-      })),
+      auditResult: p.auditResult
+        ? {
+            ...p.auditResult,
+            answeredAt: new Date(p.auditResult.answeredAt),
+          }
+        : undefined,
     }));
   } catch {
     return [];
@@ -52,23 +66,18 @@ export const saveProjects = (projects: Project[]): void => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
 };
 
-export const createProject = (name: string, address: string, client: string): Project => {
+export const createProject = (
+  name: string,
+  address: string,
+  client: string,
+  projectType: Project['projectType']
+): Project => {
   return {
     id: generateId(),
     name,
     address,
     client,
+    projectType,
     createdAt: new Date(),
-    decisions: [],
-  };
-};
-
-export const createDecision = (content: string, author: string, attachments: Attachment[] = []): Decision => {
-  return {
-    id: generateId(),
-    content,
-    author,
-    createdAt: new Date(),
-    attachments,
   };
 };
