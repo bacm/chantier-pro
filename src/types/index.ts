@@ -1,24 +1,29 @@
 export type RiskLevel = 'low' | 'medium' | 'high';
-export type AuditResponse = 'yes' | 'no' | 'na';
+export type CalibrationResponse = 'yes' | 'no' | 'unknown';
+export type ProjectStatus = 'new' | 'ongoing';
 
-export interface AuditQuestion {
-  id: string;
-  category: string;
-  question: string;
-  riskWeight: number;
-  recommendation: string;
-}
-
-export interface AuditAnswer {
-  questionId: string;
-  response: AuditResponse;
-}
-
-export interface AuditResult {
-  score: number;
-  riskLevel: RiskLevel;
-  answeredAt: Date;
-  answers: AuditAnswer[];
+// Calibration data collected during project creation
+export interface ProjectCalibration {
+  // Contractual calibration (Step 2)
+  contractSigned: CalibrationResponse;
+  scopeDefined: CalibrationResponse;
+  crFormalized: CalibrationResponse;
+  writtenValidationRequired: CalibrationResponse;
+  
+  // New project questions (Step 3 - if status = 'new')
+  companiesChosen?: CalibrationResponse;
+  budgetFixed?: CalibrationResponse;
+  planningCommitted?: CalibrationResponse;
+  
+  // Ongoing project questions (Step 3 - if status = 'ongoing')
+  decisionsWithoutValidation?: CalibrationResponse;
+  workStarted?: CalibrationResponse;
+  oralChanges?: CalibrationResponse;
+  
+  // Documentary maturity (Step 4)
+  proofsCentralized: CalibrationResponse;
+  decisionsTraceable: CalibrationResponse;
+  financialImpactsDocumented: CalibrationResponse;
 }
 
 // Decision types for ongoing project tracking
@@ -37,18 +42,19 @@ export interface Decision {
   hasFinancialImpact: boolean;
   hasProofAttached: boolean;
   createdAt: Date;
-  scoreImpact: number; // Calculated impact on project score
+  scoreImpact: number;
 }
 
 export interface Project {
   id: string;
   name: string;
   address: string;
-  client: string;
   projectType: 'individual' | 'tertiary' | 'renovation';
+  status: ProjectStatus;
+  calibration: ProjectCalibration;
   createdAt: Date;
-  auditResult?: AuditResult;
   decisions: Decision[];
-  currentScore: number; // Live score based on audit + decisions
+  initialScore: number;
+  currentScore: number;
   currentRiskLevel: RiskLevel;
 }

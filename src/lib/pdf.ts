@@ -1,14 +1,19 @@
-import { Project, RiskLevel } from '@/types';
-import { DECISION_TYPE_LABELS, getProblematicDecisions, getRiskLevelLabel } from './scoring';
-import { formatDate, formatDateTime, getProjectTypeLabel } from './projects';
-import { AUDIT_QUESTIONS, getFailedQuestions, getCategories } from './audit';
+import { Project, RiskLevel, CalibrationResponse } from '@/types';
+import { formatDate, formatDateTime, getProjectTypeLabel, getProjectStatusLabel } from './projects';
+import { getRiskLevelLabel, DECISION_TYPE_LABELS, getProblematicDecisions, getPositiveDecisions } from './scoring';
 
-export const generateProjectStatusPDF = (project: Project): void => {
+export const generateProjectStatusPDF = (project: Project) => {
   const problematicDecisions = getProblematicDecisions(project.decisions);
-  const positiveDecisions = project.decisions.filter(d => d.scoreImpact > 0);
-  const failedAuditQuestions = project.auditResult 
-    ? getFailedQuestions(project.auditResult.answers)
-    : [];
+  const positiveDecisions = getPositiveDecisions(project.decisions);
+  
+  const formatCalibrationResponse = (response: CalibrationResponse): string => {
+    switch (response) {
+      case 'yes': return 'Oui';
+      case 'no': return 'Non';
+      case 'unknown': return 'Inconnu';
+      default: return '-';
+    }
+  };
   
   const getRiskColor = (level: RiskLevel): string => {
     switch (level) {
@@ -34,231 +39,188 @@ export const generateProjectStatusPDF = (project: Project): void => {
       <title>État de traçabilité - ${project.name}</title>
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-          font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
-          line-height: 1.5; 
-          color: #1e293b;
+        body {
+          font-family: 'Georgia', serif;
+          font-size: 11pt;
+          line-height: 1.6;
+          color: #1a1a2e;
           padding: 40px;
           max-width: 800px;
           margin: 0 auto;
         }
-        .header { 
-          border-bottom: 3px solid #1e3a5f; 
-          padding-bottom: 20px; 
+        .header {
+          border-bottom: 2px solid #1a1a2e;
+          padding-bottom: 20px;
           margin-bottom: 30px;
         }
-        .logo { 
-          font-size: 24px; 
-          font-weight: 700; 
-          color: #1e3a5f;
-          letter-spacing: -0.5px;
+        .header h1 {
+          font-size: 24pt;
+          margin-bottom: 5px;
         }
-        .document-title { 
-          font-size: 20px; 
-          color: #475569;
-          margin-top: 8px;
+        .header .subtitle {
+          color: #666;
+          font-size: 12pt;
         }
-        .project-info { 
-          background: #f8fafc; 
-          padding: 20px; 
+        .meta {
+          display: flex;
+          gap: 40px;
+          margin-bottom: 30px;
+          padding: 15px;
+          background: #f8f9fa;
+          border-radius: 4px;
+        }
+        .meta-item {
+          flex: 1;
+        }
+        .meta-label {
+          font-size: 9pt;
+          color: #666;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+        .meta-value {
+          font-size: 11pt;
+          font-weight: 600;
+        }
+        .score-section {
+          text-align: center;
+          padding: 30px;
+          background: ${getRiskBackground(project.currentRiskLevel)};
+          border: 2px solid ${getRiskColor(project.currentRiskLevel)};
           border-radius: 8px;
           margin-bottom: 30px;
         }
-        .project-name { 
-          font-size: 18px; 
-          font-weight: 600;
-          margin-bottom: 12px;
-        }
-        .info-grid { 
-          display: grid; 
-          grid-template-columns: 1fr 1fr; 
-          gap: 8px;
-          font-size: 14px;
-        }
-        .info-label { color: #64748b; }
-        .score-section {
-          background: ${getRiskBackground(project.currentRiskLevel)};
-          border: 2px solid ${getRiskColor(project.currentRiskLevel)};
-          border-radius: 12px;
-          padding: 24px;
-          text-align: center;
-          margin-bottom: 30px;
-        }
         .score-value {
-          font-size: 48px;
-          font-weight: 700;
+          font-size: 48pt;
+          font-weight: bold;
           color: ${getRiskColor(project.currentRiskLevel)};
         }
         .score-label {
-          font-size: 14px;
-          color: #475569;
+          font-size: 12pt;
+          color: #666;
           margin-top: 4px;
         }
         .risk-badge {
           display: inline-block;
           background: ${getRiskColor(project.currentRiskLevel)};
           color: white;
-          padding: 6px 16px;
+          padding: 8px 20px;
           border-radius: 20px;
           font-weight: 600;
-          font-size: 14px;
-          margin-top: 12px;
+          margin-top: 10px;
         }
-        .section { margin-bottom: 30px; }
-        .section-title { 
-          font-size: 16px; 
-          font-weight: 600;
-          color: #1e3a5f;
-          border-bottom: 1px solid #e2e8f0;
-          padding-bottom: 8px;
-          margin-bottom: 16px;
-        }
-        .risk-item {
-          background: #fff5f5;
-          border-left: 3px solid #dc2626;
-          padding: 12px 16px;
-          margin-bottom: 8px;
-          border-radius: 0 4px 4px 0;
-        }
-        .risk-item-title {
-          font-weight: 500;
-          color: #dc2626;
-          font-size: 14px;
-        }
-        .risk-item-desc {
-          font-size: 13px;
-          color: #475569;
-          margin-top: 4px;
-        }
-        .positive-item {
-          background: #f0fdf4;
-          border-left: 3px solid #059669;
-          padding: 12px 16px;
-          margin-bottom: 8px;
-          border-radius: 0 4px 4px 0;
-        }
-        .positive-item-title {
-          font-weight: 500;
-          color: #059669;
-          font-size: 14px;
-        }
-        .decision-item {
-          padding: 12px 16px;
-          border: 1px solid #e2e8f0;
-          margin-bottom: 8px;
-          border-radius: 4px;
-          font-size: 13px;
-        }
-        .decision-meta {
-          color: #64748b;
-          font-size: 12px;
-          margin-top: 4px;
-        }
-        .stats-grid {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 16px;
+        .section {
           margin-bottom: 30px;
         }
-        .stat-box {
-          background: #f8fafc;
-          padding: 16px;
-          border-radius: 8px;
-          text-align: center;
+        .section h2 {
+          font-size: 14pt;
+          margin-bottom: 15px;
+          padding-bottom: 5px;
+          border-bottom: 1px solid #ddd;
         }
-        .stat-value {
-          font-size: 24px;
-          font-weight: 700;
-          color: #1e3a5f;
+        .decision-item {
+          padding: 12px;
+          margin-bottom: 10px;
+          border-left: 3px solid;
+          background: #f8f9fa;
         }
-        .stat-label {
-          font-size: 12px;
-          color: #64748b;
-          margin-top: 4px;
+        .decision-item.negative { border-color: #ef4444; }
+        .decision-item.positive { border-color: #10b981; }
+        .decision-header {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: 5px;
+        }
+        .decision-type {
+          font-weight: 600;
+          font-size: 10pt;
+        }
+        .decision-impact {
+          font-weight: 600;
+          font-size: 10pt;
+        }
+        .decision-impact.negative { color: #ef4444; }
+        .decision-impact.positive { color: #10b981; }
+        .decision-desc {
+          color: #333;
+          font-size: 10pt;
+        }
+        .decision-meta {
+          font-size: 9pt;
+          color: #666;
+          margin-top: 5px;
+        }
+        .calibration {
+          background: #f8f9fa;
+          padding: 15px;
+          border-radius: 4px;
+        }
+        .calibration-item {
+          display: flex;
+          justify-content: space-between;
+          padding: 8px 0;
+          border-bottom: 1px solid #eee;
+        }
+        .calibration-item:last-child {
+          border-bottom: none;
         }
         .footer {
           margin-top: 40px;
           padding-top: 20px;
-          border-top: 1px solid #e2e8f0;
-          font-size: 11px;
-          color: #94a3b8;
-          text-align: center;
-        }
-        .empty-state {
-          text-align: center;
-          color: #64748b;
-          font-size: 14px;
-          padding: 20px;
+          border-top: 1px solid #ddd;
+          font-size: 9pt;
+          color: #666;
         }
         @media print {
           body { padding: 20px; }
-          .score-section { break-inside: avoid; }
-          .section { break-inside: avoid; }
         }
       </style>
     </head>
     <body>
       <div class="header">
-        <div class="logo">Traçabilité Chantier</div>
-        <div class="document-title">État de traçabilité du projet</div>
+        <h1>État de traçabilité</h1>
+        <div class="subtitle">${project.name}</div>
       </div>
 
-      <div class="project-info">
-        <div class="project-name">${project.name}</div>
-        <div class="info-grid">
-          <div><span class="info-label">Adresse :</span> ${project.address}</div>
-          <div><span class="info-label">Client :</span> ${project.client}</div>
-          <div><span class="info-label">Type :</span> ${getProjectTypeLabel(project.projectType)}</div>
-          <div><span class="info-label">Créé le :</span> ${formatDate(project.createdAt)}</div>
+      <div class="meta">
+        <div class="meta-item">
+          <div class="meta-label">Adresse</div>
+          <div class="meta-value">${project.address}</div>
+        </div>
+        <div class="meta-item">
+          <div class="meta-label">Type</div>
+          <div class="meta-value">${getProjectTypeLabel(project.projectType)}</div>
+        </div>
+        <div class="meta-item">
+          <div class="meta-label">Statut</div>
+          <div class="meta-value">${getProjectStatusLabel(project.status)}</div>
         </div>
       </div>
 
       <div class="score-section">
-        <div class="score-value">${project.currentScore}%</div>
         <div class="score-label">Score de traçabilité</div>
-        <div class="risk-badge">${getRiskLevelLabel(project.currentRiskLevel)}</div>
-      </div>
-
-      <div class="stats-grid">
-        <div class="stat-box">
-          <div class="stat-value">${project.decisions.length}</div>
-          <div class="stat-label">Décisions enregistrées</div>
-        </div>
-        <div class="stat-box">
-          <div class="stat-value" style="color: #dc2626">${problematicDecisions.length}</div>
-          <div class="stat-label">Décisions à risque</div>
-        </div>
-        <div class="stat-box">
-          <div class="stat-value" style="color: #059669">${positiveDecisions.length}</div>
-          <div class="stat-label">Décisions conformes</div>
+        <div class="score-value">${project.currentScore}</div>
+        <div class="score-label">sur 100 (initial: ${project.initialScore})</div>
+        <div class="risk-badge">
+          ${getRiskLevelLabel(project.currentRiskLevel)}
         </div>
       </div>
 
       ${problematicDecisions.length > 0 ? `
         <div class="section">
-          <div class="section-title">⚠️ Décisions à risque (documentation insuffisante)</div>
+          <h2>⚠️ Décisions à risque (${problematicDecisions.length})</h2>
           ${problematicDecisions.map(d => `
-            <div class="risk-item">
-              <div class="risk-item-title">${DECISION_TYPE_LABELS[d.type]} (${d.scoreImpact} points)</div>
-              <div class="risk-item-desc">${d.description}</div>
-              <div class="decision-meta">
-                ${formatDateTime(new Date(d.createdAt))}
-                ${!d.hasWrittenValidation ? ' • Pas de validation écrite' : ''}
-                ${!d.hasProofAttached ? ' • Pas de preuve jointe' : ''}
+            <div class="decision-item negative">
+              <div class="decision-header">
+                <span class="decision-type">${DECISION_TYPE_LABELS[d.type]}</span>
+                <span class="decision-impact negative">${d.scoreImpact}</span>
               </div>
-            </div>
-          `).join('')}
-        </div>
-      ` : ''}
-
-      ${failedAuditQuestions.length > 0 ? `
-        <div class="section">
-          <div class="section-title">📋 Points d'audit non conformes</div>
-          ${failedAuditQuestions.map(q => `
-            <div class="risk-item">
-              <div class="risk-item-title">${q.category}</div>
-              <div class="risk-item-desc">${q.question}</div>
-              <div class="decision-meta">Recommandation : ${q.recommendation}</div>
+              <div class="decision-desc">${d.description}</div>
+              <div class="decision-meta">
+                ${formatDateTime(d.createdAt)} • 
+                Validation écrite: ${d.hasWrittenValidation ? 'Oui' : 'Non'} • 
+                Preuve: ${d.hasProofAttached ? 'Oui' : 'Non'}
+              </div>
             </div>
           `).join('')}
         </div>
@@ -266,19 +228,57 @@ export const generateProjectStatusPDF = (project: Project): void => {
 
       ${positiveDecisions.length > 0 ? `
         <div class="section">
-          <div class="section-title">✓ Décisions bien documentées</div>
-          ${positiveDecisions.slice(0, 5).map(d => `
-            <div class="positive-item">
-              <div class="positive-item-title">${DECISION_TYPE_LABELS[d.type]} (+${d.scoreImpact} points)</div>
-              <div class="risk-item-desc">${d.description}</div>
+          <h2>✓ Décisions conformes (${positiveDecisions.length})</h2>
+          ${positiveDecisions.map(d => `
+            <div class="decision-item positive">
+              <div class="decision-header">
+                <span class="decision-type">${DECISION_TYPE_LABELS[d.type]}</span>
+                <span class="decision-impact positive">+${d.scoreImpact}</span>
+              </div>
+              <div class="decision-desc">${d.description}</div>
+              <div class="decision-meta">${formatDateTime(d.createdAt)}</div>
             </div>
           `).join('')}
-          ${positiveDecisions.length > 5 ? `<p class="empty-state">Et ${positiveDecisions.length - 5} autres décisions conformes...</p>` : ''}
         </div>
       ` : ''}
 
+      <div class="section">
+        <h2>Calibration initiale</h2>
+        <div class="calibration">
+          <div class="calibration-item">
+            <span>Contrat MOE signé</span>
+            <span>${formatCalibrationResponse(project.calibration.contractSigned)}</span>
+          </div>
+          <div class="calibration-item">
+            <span>Missions définies par écrit</span>
+            <span>${formatCalibrationResponse(project.calibration.scopeDefined)}</span>
+          </div>
+          <div class="calibration-item">
+            <span>CR formalisés prévus</span>
+            <span>${formatCalibrationResponse(project.calibration.crFormalized)}</span>
+          </div>
+          <div class="calibration-item">
+            <span>Validation écrite requise</span>
+            <span>${formatCalibrationResponse(project.calibration.writtenValidationRequired)}</span>
+          </div>
+          <div class="calibration-item">
+            <span>Preuves centralisées</span>
+            <span>${formatCalibrationResponse(project.calibration.proofsCentralized)}</span>
+          </div>
+          <div class="calibration-item">
+            <span>Décisions traçables</span>
+            <span>${formatCalibrationResponse(project.calibration.decisionsTraceable)}</span>
+          </div>
+          <div class="calibration-item">
+            <span>Impacts financiers documentés</span>
+            <span>${formatCalibrationResponse(project.calibration.financialImpactsDocumented)}</span>
+          </div>
+        </div>
+      </div>
+
       <div class="footer">
-        Document généré le ${formatDateTime(new Date())} • Ce document est un état des lieux de la traçabilité et ne constitue pas un avis juridique.
+        <p>Document généré le ${formatDateTime(new Date())}</p>
+        <p>Ce document constitue un état des lieux de la traçabilité du projet à date. Il ne constitue pas un avis juridique.</p>
       </div>
     </body>
     </html>
@@ -288,6 +288,9 @@ export const generateProjectStatusPDF = (project: Project): void => {
   if (printWindow) {
     printWindow.document.write(htmlContent);
     printWindow.document.close();
-    printWindow.print();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 250);
   }
 };
