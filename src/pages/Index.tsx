@@ -1,20 +1,23 @@
 import { useState, useEffect } from 'react';
-import { Project, Decision } from '@/types';
-import { loadProjects, saveProjects, formatDate } from '@/lib/projects';
-import { generatePDF } from '@/lib/pdf';
-import { Plus, ArrowLeft, Download, MapPin, User, Calendar, FileText, Shield } from 'lucide-react';
+import { Plus, ClipboardCheck, Building2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { ProjectCard } from '@/components/ProjectCard';
-import { DecisionTimeline } from '@/components/DecisionTimeline';
+import { Card } from '@/components/ui/card';
+import { Project, AuditResult } from '@/types';
+import { loadProjects, saveProjects } from '@/lib/projects';
 import { CreateProjectDialog } from '@/components/CreateProjectDialog';
-import { AddDecisionDialog } from '@/components/AddDecisionDialog';
-import { toast } from 'sonner';
+import { ProjectCard } from '@/components/ProjectCard';
+import { AuditQuestionnaire } from '@/components/AuditQuestionnaire';
+import { AuditResults } from '@/components/AuditResults';
+import { useToast } from '@/hooks/use-toast';
+
+type View = 'dashboard' | 'audit' | 'results';
 
 const Index = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [view, setView] = useState<View>('dashboard');
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [showDecisionDialog, setShowDecisionDialog] = useState(false);
+  const { toast } = useToast();
 
   // Load projects on mount
   useEffect(() => {
@@ -23,187 +26,175 @@ const Index = () => {
 
   // Save projects when they change
   useEffect(() => {
-    saveProjects(projects);
+    if (projects.length > 0) {
+      saveProjects(projects);
+    }
   }, [projects]);
 
   const handleProjectCreated = (project: Project) => {
-    setProjects(prev => [...prev, project]);
+    setProjects((prev) => [...prev, project]);
     setSelectedProject(project);
-    toast.success('Chantier créé avec succès');
+    setView('audit');
+    toast({
+      title: 'Chantier créé',
+      description: "Répondez maintenant au questionnaire d'audit.",
+    });
   };
 
-  const handleDecisionAdded = (decision: Decision) => {
+  const handleProjectClick = (project: Project) => {
+    setSelectedProject(project);
+    if (project.auditResult) {
+      setView('results');
+    } else {
+      setView('audit');
+    }
+  };
+
+  const handleAuditComplete = (result: AuditResult) => {
     if (!selectedProject) return;
-    
-    const updatedProject = {
-      ...selectedProject,
-      decisions: [...selectedProject.decisions, decision],
-    };
-    
-    setProjects(prev => prev.map(p => 
-      p.id === selectedProject.id ? updatedProject : p
-    ));
+
+    const updatedProject = { ...selectedProject, auditResult: result };
+    setProjects((prev) =>
+      prev.map((p) => (p.id === selectedProject.id ? updatedProject : p))
+    );
     setSelectedProject(updatedProject);
-    toast.success('Décision enregistrée avec horodatage');
+    setView('results');
+    toast({
+      title: 'Audit terminé',
+      description: `Score de traçabilité : ${result.score}%`,
+    });
   };
 
-  const handleExportPDF = async () => {
-    if (!selectedProject) return;
-    await generatePDF(selectedProject);
-    toast.success('Export PDF généré');
+  const handleBackToDashboard = () => {
+    setSelectedProject(null);
+    setView('dashboard');
   };
 
-  // Project detail view
-  if (selectedProject) {
+  // Dashboard view
+  if (view === 'dashboard') {
     return (
       <div className="min-h-screen bg-background">
         {/* Header */}
-        <header className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border">
-          <div className="container max-w-3xl mx-auto px-4 py-4">
-            <div className="flex items-center justify-between">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSelectedProject(null)}
-                className="gap-2"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Retour
-              </Button>
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleExportPDF}
-                className="gap-2"
-              >
-                <Download className="w-4 h-4" />
-                Export PDF
-              </Button>
+        <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
+          <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center">
+                <ClipboardCheck className="h-5 w-5 text-primary-foreground" />
+              </div>
+              <div>
+                <h1 className="font-display text-xl font-semibold">Audit Chantier</h1>
+                <p className="text-xs text-muted-foreground">Évaluation des risques juridiques</p>
+              </div>
             </div>
+            <Button onClick={() => setShowCreateDialog(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nouveau chantier
+            </Button>
           </div>
         </header>
 
-        {/* Project info */}
-        <div className="container max-w-3xl mx-auto px-4 py-6">
-          <div className="document-card p-6 mb-6">
-            <h1 className="font-display text-2xl font-bold text-foreground mb-4">
-              {selectedProject.name}
-            </h1>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <MapPin className="w-4 h-4 flex-shrink-0" />
-                <span>{selectedProject.address}</span>
+        {/* Main content */}
+        <main className="container mx-auto px-4 py-8">
+          {projects.length === 0 ? (
+            <Card className="p-12 text-center">
+              <div className="max-w-sm mx-auto space-y-4">
+                <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+                  <Building2 className="h-8 w-8 text-primary" />
+                </div>
+                <div className="space-y-2">
+                  <h2 className="font-display text-xl font-semibold">Aucun chantier</h2>
+                  <p className="text-muted-foreground text-sm">
+                    Créez votre premier chantier pour évaluer sa traçabilité juridique
+                    et identifier les risques potentiels.
+                  </p>
+                </div>
+                <Button onClick={() => setShowCreateDialog(true)} className="mt-4">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Créer un chantier
+                </Button>
               </div>
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <User className="w-4 h-4 flex-shrink-0" />
-                <span>{selectedProject.client}</span>
+            </Card>
+          ) : (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="font-display text-lg font-medium">
+                  Vos chantiers ({projects.length})
+                </h2>
               </div>
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Calendar className="w-4 h-4 flex-shrink-0" />
-                <span>{formatDate(selectedProject.createdAt)}</span>
+              <div className="grid gap-4">
+                {projects.map((project) => (
+                  <ProjectCard
+                    key={project.id}
+                    project={project}
+                    onClick={() => handleProjectClick(project)}
+                  />
+                ))}
               </div>
             </div>
-          </div>
+          )}
+        </main>
 
-          {/* Timeline header */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-2">
-              <FileText className="w-5 h-5 text-muted-foreground" />
-              <h2 className="font-display text-lg font-semibold">
-                Journal des décisions
-              </h2>
-              <span className="text-sm text-muted-foreground">
-                ({selectedProject.decisions.length})
-              </span>
-            </div>
-            
-            <Button onClick={() => setShowDecisionDialog(true)} className="gap-2">
-              <Plus className="w-4 h-4" />
-              Nouvelle décision
-            </Button>
-          </div>
-
-          {/* Timeline */}
-          <DecisionTimeline decisions={selectedProject.decisions} />
-        </div>
-
-        <AddDecisionDialog
-          open={showDecisionDialog}
-          onOpenChange={setShowDecisionDialog}
-          onDecisionAdded={handleDecisionAdded}
+        <CreateProjectDialog
+          open={showCreateDialog}
+          onOpenChange={setShowCreateDialog}
+          onProjectCreated={handleProjectCreated}
         />
       </div>
     );
   }
 
-  // Dashboard view
-  return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-card">
-        <div className="container max-w-3xl mx-auto px-4 py-6">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
-              <Shield className="w-5 h-5 text-primary-foreground" />
+  // Audit questionnaire view
+  if (view === 'audit' && selectedProject) {
+    return (
+      <div className="min-h-screen bg-background">
+        <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
+          <div className="container mx-auto px-4 py-4">
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="icon" onClick={handleBackToDashboard}>
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <div>
+                <h1 className="font-display text-lg font-semibold">{selectedProject.name}</h1>
+                <p className="text-xs text-muted-foreground">Audit de traçabilité</p>
+              </div>
             </div>
-            <h1 className="font-display text-2xl font-bold text-foreground">
-              Décisions Chantier
-            </h1>
           </div>
-          <p className="text-muted-foreground">
-            Journal horodaté de vos décisions de chantier. Sécurisez votre responsabilité.
-          </p>
-        </div>
-      </header>
+        </header>
+        <main className="container mx-auto px-4 py-8 max-w-2xl">
+          <AuditQuestionnaire
+            onComplete={handleAuditComplete}
+            onCancel={handleBackToDashboard}
+          />
+        </main>
+      </div>
+    );
+  }
 
-      {/* Main content */}
-      <main className="container max-w-3xl mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="font-display text-lg font-semibold">Vos chantiers</h2>
-          <Button onClick={() => setShowCreateDialog(true)} className="gap-2">
-            <Plus className="w-4 h-4" />
-            Nouveau chantier
-          </Button>
-        </div>
-
-        {projects.length === 0 ? (
-          <div className="document-card p-12 text-center">
-            <div className="w-16 h-16 rounded-full bg-secondary flex items-center justify-center mx-auto mb-4">
-              <FileText className="w-8 h-8 text-muted-foreground" />
+  // Results view
+  if (view === 'results' && selectedProject) {
+    return (
+      <div className="min-h-screen bg-background">
+        <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
+          <div className="container mx-auto px-4 py-4">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center">
+                <ClipboardCheck className="h-5 w-5 text-primary-foreground" />
+              </div>
+              <div>
+                <h1 className="font-display text-xl font-semibold">Résultats de l'audit</h1>
+                <p className="text-xs text-muted-foreground">{selectedProject.name}</p>
+              </div>
             </div>
-            <h3 className="font-display text-lg font-semibold text-foreground mb-2">
-              Aucun chantier
-            </h3>
-            <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
-              Créez votre premier chantier pour commencer à enregistrer vos décisions.
-            </p>
-            <Button onClick={() => setShowCreateDialog(true)} className="gap-2">
-              <Plus className="w-4 h-4" />
-              Créer mon premier chantier
-            </Button>
           </div>
-        ) : (
-          <div className="grid gap-4">
-            {projects.map((project) => (
-              <ProjectCard
-                key={project.id}
-                project={project}
-                onClick={() => setSelectedProject(project)}
-              />
-            ))}
-          </div>
-        )}
-      </main>
+        </header>
+        <main className="container mx-auto px-4 py-8 max-w-3xl">
+          <AuditResults project={selectedProject} onBack={handleBackToDashboard} />
+        </main>
+      </div>
+    );
+  }
 
-      <CreateProjectDialog
-        open={showCreateDialog}
-        onOpenChange={setShowCreateDialog}
-        onProjectCreated={handleProjectCreated}
-      />
-    </div>
-  );
+  return null;
 };
 
 export default Index;
