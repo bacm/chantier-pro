@@ -1,9 +1,9 @@
-import { Building2, MapPin, User, ShieldCheck, Shield, ShieldAlert, ClipboardList } from 'lucide-react';
+import { Building2, MapPin, User, ShieldCheck, Shield, ShieldAlert, ClipboardList, FileEdit } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Project } from '@/types';
 import { formatDate, getProjectTypeLabel } from '@/lib/projects';
-import { getRiskLevelLabel } from '@/lib/audit';
+import { getRiskLevelLabel } from '@/lib/scoring';
 import { cn } from '@/lib/utils';
 
 interface ProjectCardProps {
@@ -13,28 +13,28 @@ interface ProjectCardProps {
 
 export const ProjectCard = ({ project, onClick }: ProjectCardProps) => {
   const hasAudit = !!project.auditResult;
+  const { currentScore, currentRiskLevel, decisions } = project;
 
-  const getRiskBadge = () => {
-    if (!project.auditResult) return null;
-    
-    const { riskLevel, score } = project.auditResult;
-    const styles = {
-      low: 'bg-green-100 text-green-700 border-green-200',
-      medium: 'bg-yellow-100 text-yellow-700 border-yellow-200',
-      high: 'bg-red-100 text-red-700 border-red-200',
-    };
-    const icons = {
-      low: <ShieldCheck className="h-3 w-3" />,
-      medium: <Shield className="h-3 w-3" />,
-      high: <ShieldAlert className="h-3 w-3" />,
-    };
+  const getRiskStyles = () => {
+    switch (currentRiskLevel) {
+      case 'low':
+        return 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-400 dark:border-emerald-800';
+      case 'medium':
+        return 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/50 dark:text-amber-400 dark:border-amber-800';
+      case 'high':
+        return 'bg-red-100 text-red-700 border-red-200 dark:bg-red-950/50 dark:text-red-400 dark:border-red-800';
+    }
+  };
 
-    return (
-      <Badge variant="outline" className={cn('gap-1', styles[riskLevel])}>
-        {icons[riskLevel]}
-        {score}% - Risque {getRiskLevelLabel(riskLevel)}
-      </Badge>
-    );
+  const getRiskIcon = () => {
+    switch (currentRiskLevel) {
+      case 'low':
+        return <ShieldCheck className="h-3.5 w-3.5" />;
+      case 'medium':
+        return <Shield className="h-3.5 w-3.5" />;
+      case 'high':
+        return <ShieldAlert className="h-3.5 w-3.5" />;
+    }
   };
 
   return (
@@ -64,15 +64,26 @@ export const ProjectCard = ({ project, onClick }: ProjectCardProps) => {
                 <Building2 className="h-3.5 w-3.5" />
                 <span>{getProjectTypeLabel(project.projectType)}</span>
               </div>
+              {decisions.length > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <FileEdit className="h-3.5 w-3.5" />
+                  <span>{decisions.length} décision{decisions.length > 1 ? 's' : ''}</span>
+                </div>
+              )}
             </div>
 
             <div className="flex items-center gap-2 pt-1">
               {hasAudit ? (
-                getRiskBadge()
+                <Badge variant="outline" className={cn('gap-1.5', getRiskStyles())}>
+                  {getRiskIcon()}
+                  <span className="font-bold">{currentScore}%</span>
+                  <span>—</span>
+                  <span>{getRiskLevelLabel(currentRiskLevel)}</span>
+                </Badge>
               ) : (
                 <Badge variant="outline" className="gap-1 bg-muted/50">
                   <ClipboardList className="h-3 w-3" />
-                  Audit à réaliser
+                  Audit initial à réaliser
                 </Badge>
               )}
             </div>

@@ -5,7 +5,7 @@ export interface AuditQuestion {
   id: string;
   category: string;
   question: string;
-  riskWeight: number; // 1-3, higher = more critical
+  riskWeight: number;
   recommendation: string;
 }
 
@@ -15,10 +15,29 @@ export interface AuditAnswer {
 }
 
 export interface AuditResult {
-  score: number; // 0-100
+  score: number;
   riskLevel: RiskLevel;
   answeredAt: Date;
   answers: AuditAnswer[];
+}
+
+// Decision types for ongoing project tracking
+export type DecisionType = 
+  | 'modification'      // Modification demandée
+  | 'validation'        // Validation technique
+  | 'alert'             // Alerte ou réserve
+  | 'financial'         // Impact financier
+  | 'reception';        // Réception/livraison
+
+export interface Decision {
+  id: string;
+  type: DecisionType;
+  description: string;
+  hasWrittenValidation: boolean;
+  hasFinancialImpact: boolean;
+  hasProofAttached: boolean;
+  createdAt: Date;
+  scoreImpact: number; // Calculated impact on project score
 }
 
 export interface Project {
@@ -29,4 +48,7 @@ export interface Project {
   projectType: 'individual' | 'tertiary' | 'renovation';
   createdAt: Date;
   auditResult?: AuditResult;
+  decisions: Decision[];
+  currentScore: number; // Live score based on audit + decisions
+  currentRiskLevel: RiskLevel;
 }

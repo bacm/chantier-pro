@@ -1,33 +1,28 @@
-import { Project } from '@/types';
+import { Project, RiskLevel } from '@/types';
+import { DECISION_TYPE_LABELS, getProblematicDecisions, getRiskLevelLabel } from './scoring';
 import { formatDate, formatDateTime, getProjectTypeLabel } from './projects';
-import { AUDIT_QUESTIONS, getRiskLevelLabel, getRiskLevelDescription, getFailedQuestions, getCategories } from './audit';
+import { AUDIT_QUESTIONS, getFailedQuestions, getCategories } from './audit';
 
-export const generateAuditPDF = (project: Project): void => {
-  if (!project.auditResult) return;
-
-  const { auditResult } = project;
-  const failedQuestions = getFailedQuestions(auditResult.answers);
-  const categories = getCategories();
-
-  const getRiskColor = () => {
-    switch (auditResult.riskLevel) {
-      case 'low':
-        return '#16a34a';
-      case 'medium':
-        return '#ca8a04';
-      case 'high':
-        return '#dc2626';
+export const generateProjectStatusPDF = (project: Project): void => {
+  const problematicDecisions = getProblematicDecisions(project.decisions);
+  const positiveDecisions = project.decisions.filter(d => d.scoreImpact > 0);
+  const failedAuditQuestions = project.auditResult 
+    ? getFailedQuestions(project.auditResult.answers)
+    : [];
+  
+  const getRiskColor = (level: RiskLevel): string => {
+    switch (level) {
+      case 'low': return '#059669';
+      case 'medium': return '#d97706';
+      case 'high': return '#dc2626';
     }
   };
 
-  const getRiskBgColor = () => {
-    switch (auditResult.riskLevel) {
-      case 'low':
-        return '#f0fdf4';
-      case 'medium':
-        return '#fefce8';
-      case 'high':
-        return '#fef2f2';
+  const getRiskBackground = (level: RiskLevel): string => {
+    switch (level) {
+      case 'low': return '#d1fae5';
+      case 'medium': return '#fef3c7';
+      case 'high': return '#fee2e2';
     }
   };
 
@@ -36,258 +31,254 @@ export const generateAuditPDF = (project: Project): void => {
     <html lang="fr">
     <head>
       <meta charset="UTF-8">
-      <title>Rapport d'audit - ${project.name}</title>
+      <title>État de traçabilité - ${project.name}</title>
       <style>
-        * {
-          margin: 0;
-          padding: 0;
-          box-sizing: border-box;
-        }
-        body {
-          font-family: 'Georgia', serif;
-          font-size: 11pt;
-          line-height: 1.6;
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+          font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
+          line-height: 1.5; 
           color: #1e293b;
           padding: 40px;
           max-width: 800px;
           margin: 0 auto;
         }
-        .header {
-          border-bottom: 3px solid #1e293b;
-          padding-bottom: 20px;
+        .header { 
+          border-bottom: 3px solid #1e3a5f; 
+          padding-bottom: 20px; 
           margin-bottom: 30px;
         }
-        .header h1 {
-          font-size: 24pt;
-          font-weight: normal;
-          margin-bottom: 5px;
+        .logo { 
+          font-size: 24px; 
+          font-weight: 700; 
+          color: #1e3a5f;
+          letter-spacing: -0.5px;
         }
-        .header .subtitle {
-          font-size: 12pt;
-          color: #64748b;
+        .document-title { 
+          font-size: 20px; 
+          color: #475569;
+          margin-top: 8px;
         }
-        .meta {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 20px;
-          margin-bottom: 30px;
-          padding: 20px;
-          background: #f8fafc;
+        .project-info { 
+          background: #f8fafc; 
+          padding: 20px; 
           border-radius: 8px;
-        }
-        .meta-item {
-          margin-bottom: 10px;
-        }
-        .meta-label {
-          font-size: 9pt;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          color: #64748b;
-          margin-bottom: 2px;
-        }
-        .meta-value {
-          font-size: 11pt;
-          font-weight: 600;
-        }
-        .score-section {
-          text-align: center;
-          padding: 30px;
           margin-bottom: 30px;
-          background: ${getRiskBgColor()};
+        }
+        .project-name { 
+          font-size: 18px; 
+          font-weight: 600;
+          margin-bottom: 12px;
+        }
+        .info-grid { 
+          display: grid; 
+          grid-template-columns: 1fr 1fr; 
+          gap: 8px;
+          font-size: 14px;
+        }
+        .info-label { color: #64748b; }
+        .score-section {
+          background: ${getRiskBackground(project.currentRiskLevel)};
+          border: 2px solid ${getRiskColor(project.currentRiskLevel)};
           border-radius: 12px;
-          border: 2px solid ${getRiskColor()};
+          padding: 24px;
+          text-align: center;
+          margin-bottom: 30px;
         }
         .score-value {
-          font-size: 48pt;
-          font-weight: bold;
-          color: ${getRiskColor()};
+          font-size: 48px;
+          font-weight: 700;
+          color: ${getRiskColor(project.currentRiskLevel)};
         }
         .score-label {
-          font-size: 14pt;
-          color: #1e293b;
-          margin-top: 5px;
-        }
-        .risk-level {
-          display: inline-block;
-          padding: 8px 20px;
-          margin-top: 15px;
-          background: ${getRiskColor()};
-          color: white;
-          border-radius: 20px;
-          font-size: 12pt;
-          font-weight: 600;
-        }
-        .risk-description {
-          margin-top: 15px;
-          font-size: 11pt;
+          font-size: 14px;
           color: #475569;
+          margin-top: 4px;
         }
-        .section {
+        .risk-badge {
+          display: inline-block;
+          background: ${getRiskColor(project.currentRiskLevel)};
+          color: white;
+          padding: 6px 16px;
+          border-radius: 20px;
+          font-weight: 600;
+          font-size: 14px;
+          margin-top: 12px;
+        }
+        .section { margin-bottom: 30px; }
+        .section-title { 
+          font-size: 16px; 
+          font-weight: 600;
+          color: #1e3a5f;
+          border-bottom: 1px solid #e2e8f0;
+          padding-bottom: 8px;
+          margin-bottom: 16px;
+        }
+        .risk-item {
+          background: #fff5f5;
+          border-left: 3px solid #dc2626;
+          padding: 12px 16px;
+          margin-bottom: 8px;
+          border-radius: 0 4px 4px 0;
+        }
+        .risk-item-title {
+          font-weight: 500;
+          color: #dc2626;
+          font-size: 14px;
+        }
+        .risk-item-desc {
+          font-size: 13px;
+          color: #475569;
+          margin-top: 4px;
+        }
+        .positive-item {
+          background: #f0fdf4;
+          border-left: 3px solid #059669;
+          padding: 12px 16px;
+          margin-bottom: 8px;
+          border-radius: 0 4px 4px 0;
+        }
+        .positive-item-title {
+          font-weight: 500;
+          color: #059669;
+          font-size: 14px;
+        }
+        .decision-item {
+          padding: 12px 16px;
+          border: 1px solid #e2e8f0;
+          margin-bottom: 8px;
+          border-radius: 4px;
+          font-size: 13px;
+        }
+        .decision-meta {
+          color: #64748b;
+          font-size: 12px;
+          margin-top: 4px;
+        }
+        .stats-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 16px;
           margin-bottom: 30px;
         }
-        .section-title {
-          font-size: 14pt;
-          font-weight: 600;
-          margin-bottom: 15px;
-          padding-bottom: 8px;
-          border-bottom: 1px solid #e2e8f0;
+        .stat-box {
+          background: #f8fafc;
+          padding: 16px;
+          border-radius: 8px;
+          text-align: center;
         }
-        .category {
-          margin-bottom: 20px;
+        .stat-value {
+          font-size: 24px;
+          font-weight: 700;
+          color: #1e3a5f;
         }
-        .category-title {
-          font-size: 11pt;
-          font-weight: 600;
-          color: #475569;
-          margin-bottom: 10px;
-        }
-        .question-row {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          padding: 10px 0;
-          border-bottom: 1px solid #f1f5f9;
-        }
-        .question-text {
-          flex: 1;
-          padding-right: 20px;
-        }
-        .answer {
-          font-weight: 600;
-          min-width: 60px;
-          text-align: right;
-        }
-        .answer-yes { color: #16a34a; }
-        .answer-no { color: #dc2626; }
-        .answer-na { color: #64748b; }
-        .risk-item {
-          padding: 15px;
-          margin-bottom: 10px;
-          background: #fef2f2;
-          border-left: 4px solid #dc2626;
-          border-radius: 0 8px 8px 0;
-        }
-        .risk-item-question {
-          font-weight: 600;
-          margin-bottom: 8px;
-        }
-        .risk-item-recommendation {
-          font-size: 10pt;
-          color: #475569;
-        }
-        .recommendation-prefix {
-          font-weight: 600;
-          color: #16a34a;
+        .stat-label {
+          font-size: 12px;
+          color: #64748b;
+          margin-top: 4px;
         }
         .footer {
           margin-top: 40px;
           padding-top: 20px;
           border-top: 1px solid #e2e8f0;
-          font-size: 9pt;
-          color: #64748b;
+          font-size: 11px;
+          color: #94a3b8;
           text-align: center;
         }
-        .legal-notice {
-          margin-top: 30px;
-          padding: 15px;
-          background: #f8fafc;
-          border-radius: 8px;
-          font-size: 9pt;
+        .empty-state {
+          text-align: center;
           color: #64748b;
+          font-size: 14px;
+          padding: 20px;
         }
         @media print {
           body { padding: 20px; }
           .score-section { break-inside: avoid; }
-          .risk-item { break-inside: avoid; }
+          .section { break-inside: avoid; }
         }
       </style>
     </head>
     <body>
       <div class="header">
-        <h1>Rapport d'Audit de Traçabilité</h1>
-        <div class="subtitle">Évaluation des risques juridiques du chantier</div>
+        <div class="logo">Traçabilité Chantier</div>
+        <div class="document-title">État de traçabilité du projet</div>
       </div>
 
-      <div class="meta">
-        <div>
-          <div class="meta-item">
-            <div class="meta-label">Chantier</div>
-            <div class="meta-value">${project.name}</div>
-          </div>
-          <div class="meta-item">
-            <div class="meta-label">Adresse</div>
-            <div class="meta-value">${project.address}</div>
-          </div>
-        </div>
-        <div>
-          <div class="meta-item">
-            <div class="meta-label">Client</div>
-            <div class="meta-value">${project.client}</div>
-          </div>
-          <div class="meta-item">
-            <div class="meta-label">Type de chantier</div>
-            <div class="meta-value">${getProjectTypeLabel(project.projectType)}</div>
-          </div>
+      <div class="project-info">
+        <div class="project-name">${project.name}</div>
+        <div class="info-grid">
+          <div><span class="info-label">Adresse :</span> ${project.address}</div>
+          <div><span class="info-label">Client :</span> ${project.client}</div>
+          <div><span class="info-label">Type :</span> ${getProjectTypeLabel(project.projectType)}</div>
+          <div><span class="info-label">Créé le :</span> ${formatDate(project.createdAt)}</div>
         </div>
       </div>
 
       <div class="score-section">
-        <div class="score-value">${auditResult.score}%</div>
+        <div class="score-value">${project.currentScore}%</div>
         <div class="score-label">Score de traçabilité</div>
-        <div class="risk-level">Risque ${getRiskLevelLabel(auditResult.riskLevel)}</div>
-        <div class="risk-description">${getRiskLevelDescription(auditResult.riskLevel)}</div>
+        <div class="risk-badge">${getRiskLevelLabel(project.currentRiskLevel)}</div>
       </div>
 
-      ${failedQuestions.length > 0 ? `
-      <div class="section">
-        <h2 class="section-title">Risques identifiés (${failedQuestions.length})</h2>
-        ${failedQuestions.map((q) => `
-          <div class="risk-item">
-            <div class="risk-item-question">${q.question}</div>
-            <div class="risk-item-recommendation">
-              <span class="recommendation-prefix">→ Action :</span> ${q.recommendation}
+      <div class="stats-grid">
+        <div class="stat-box">
+          <div class="stat-value">${project.decisions.length}</div>
+          <div class="stat-label">Décisions enregistrées</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-value" style="color: #dc2626">${problematicDecisions.length}</div>
+          <div class="stat-label">Décisions à risque</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-value" style="color: #059669">${positiveDecisions.length}</div>
+          <div class="stat-label">Décisions conformes</div>
+        </div>
+      </div>
+
+      ${problematicDecisions.length > 0 ? `
+        <div class="section">
+          <div class="section-title">⚠️ Décisions à risque (documentation insuffisante)</div>
+          ${problematicDecisions.map(d => `
+            <div class="risk-item">
+              <div class="risk-item-title">${DECISION_TYPE_LABELS[d.type]} (${d.scoreImpact} points)</div>
+              <div class="risk-item-desc">${d.description}</div>
+              <div class="decision-meta">
+                ${formatDateTime(new Date(d.createdAt))}
+                ${!d.hasWrittenValidation ? ' • Pas de validation écrite' : ''}
+                ${!d.hasProofAttached ? ' • Pas de preuve jointe' : ''}
+              </div>
             </div>
-          </div>
-        `).join('')}
-      </div>
-      ` : `
-      <div class="section">
-        <h2 class="section-title">Risques identifiés</h2>
-        <p style="color: #16a34a; font-weight: 600;">Aucun risque majeur identifié. Votre traçabilité est conforme.</p>
-      </div>
-      `}
+          `).join('')}
+        </div>
+      ` : ''}
 
-      <div class="section">
-        <h2 class="section-title">Détail de l'audit</h2>
-        ${categories.map((category) => {
-          const categoryQuestions = AUDIT_QUESTIONS.filter((q) => q.category === category);
-          return `
-            <div class="category">
-              <div class="category-title">${category}</div>
-              ${categoryQuestions.map((q) => {
-                const answer = auditResult.answers.find((a) => a.questionId === q.id);
-                const responseText = answer?.response === 'yes' ? 'Oui' : answer?.response === 'no' ? 'Non' : 'N/A';
-                const responseClass = answer?.response === 'yes' ? 'answer-yes' : answer?.response === 'no' ? 'answer-no' : 'answer-na';
-                return `
-                  <div class="question-row">
-                    <div class="question-text">${q.question}</div>
-                    <div class="answer ${responseClass}">${responseText}</div>
-                  </div>
-                `;
-              }).join('')}
+      ${failedAuditQuestions.length > 0 ? `
+        <div class="section">
+          <div class="section-title">📋 Points d'audit non conformes</div>
+          ${failedAuditQuestions.map(q => `
+            <div class="risk-item">
+              <div class="risk-item-title">${q.category}</div>
+              <div class="risk-item-desc">${q.question}</div>
+              <div class="decision-meta">Recommandation : ${q.recommendation}</div>
             </div>
-          `;
-        }).join('')}
-      </div>
+          `).join('')}
+        </div>
+      ` : ''}
 
-      <div class="legal-notice">
-        <strong>Avertissement :</strong> Ce rapport constitue une aide à l'évaluation de votre traçabilité documentaire. 
-        Il ne remplace pas un conseil juridique professionnel. Les recommandations sont indicatives et doivent être 
-        adaptées au contexte spécifique de chaque chantier. Ce document a été généré le ${formatDateTime(auditResult.answeredAt)}.
-      </div>
+      ${positiveDecisions.length > 0 ? `
+        <div class="section">
+          <div class="section-title">✓ Décisions bien documentées</div>
+          ${positiveDecisions.slice(0, 5).map(d => `
+            <div class="positive-item">
+              <div class="positive-item-title">${DECISION_TYPE_LABELS[d.type]} (+${d.scoreImpact} points)</div>
+              <div class="risk-item-desc">${d.description}</div>
+            </div>
+          `).join('')}
+          ${positiveDecisions.length > 5 ? `<p class="empty-state">Et ${positiveDecisions.length - 5} autres décisions conformes...</p>` : ''}
+        </div>
+      ` : ''}
 
       <div class="footer">
-        Audit généré le ${formatDate(auditResult.answeredAt)} • Chantier créé le ${formatDate(project.createdAt)}
+        Document généré le ${formatDateTime(new Date())} • Ce document est un état des lieux de la traçabilité et ne constitue pas un avis juridique.
       </div>
     </body>
     </html>
@@ -297,9 +288,6 @@ export const generateAuditPDF = (project: Project): void => {
   if (printWindow) {
     printWindow.document.write(htmlContent);
     printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => {
-      printWindow.print();
-    }, 250);
+    printWindow.print();
   }
 };

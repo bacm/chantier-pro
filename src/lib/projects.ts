@@ -1,4 +1,5 @@
-import { Project } from '@/types';
+import { Project, Decision, DecisionType } from '@/types';
+import { calculateDecisionImpact, calculateProjectScore } from './scoring';
 
 // Generate unique IDs
 export const generateId = (): string => {
@@ -50,6 +51,12 @@ export const loadProjects = (): Project[] => {
     return projects.map((p: any) => ({
       ...p,
       createdAt: new Date(p.createdAt),
+      decisions: (p.decisions || []).map((d: any) => ({
+        ...d,
+        createdAt: new Date(d.createdAt),
+      })),
+      currentScore: p.currentScore ?? 50,
+      currentRiskLevel: p.currentRiskLevel ?? 'medium',
       auditResult: p.auditResult
         ? {
             ...p.auditResult,
@@ -79,5 +86,57 @@ export const createProject = (
     client,
     projectType,
     createdAt: new Date(),
+    decisions: [],
+    currentScore: 50, // Initial score before audit
+    currentRiskLevel: 'medium',
+  };
+};
+
+export const createDecision = (
+  type: DecisionType,
+  description: string,
+  hasWrittenValidation: boolean,
+  hasFinancialImpact: boolean,
+  hasProofAttached: boolean
+): Decision => {
+  const scoreImpact = calculateDecisionImpact({
+    type,
+    description,
+    hasWrittenValidation,
+    hasFinancialImpact,
+    hasProofAttached,
+  });
+
+  return {
+    id: generateId(),
+    type,
+    description,
+    hasWrittenValidation,
+    hasFinancialImpact,
+    hasProofAttached,
+    createdAt: new Date(),
+    scoreImpact,
+  };
+};
+
+export const addDecisionToProject = (project: Project, decision: Decision): Project => {
+  const updatedProject = {
+    ...project,
+    decisions: [...project.decisions, decision],
+  };
+  
+  const { score, riskLevel } = calculateProjectScore(updatedProject);
+  updatedProject.currentScore = score;
+  updatedProject.currentRiskLevel = riskLevel;
+  
+  return updatedProject;
+};
+
+export const updateProjectAfterAudit = (project: Project): Project => {
+  const { score, riskLevel } = calculateProjectScore(project);
+  return {
+    ...project,
+    currentScore: score,
+    currentRiskLevel: riskLevel,
   };
 };
