@@ -2,20 +2,20 @@ import { Decision, DecisionType, Project, RiskLevel } from '@/types';
 
 // Weight of each decision type (higher = more critical)
 export const DECISION_TYPE_WEIGHTS: Record<DecisionType, number> = {
-  modification: 3,
+  modification: 2,
   validation: 2,
-  alert: 3,
+  counsel: 4, // Devoir de conseil is critical for MOE
   financial: 3,
-  reception: 2,
+  reception: 3,
 };
 
 // Labels for decision types
 export const DECISION_TYPE_LABELS: Record<DecisionType, string> = {
-  modification: 'Modification demandée',
-  validation: 'Validation technique',
-  alert: 'Alerte ou réserve',
-  financial: 'Impact financier',
-  reception: 'Réception / livraison',
+  modification: 'Modification (Client/TMA)',
+  validation: 'Visa technique / Validation',
+  counsel: 'Devoir de conseil / Alerte',
+  financial: 'Impact financier / Avenant',
+  reception: 'Réception / Livraison',
 };
 
 // Calculate the impact of a single decision on the score

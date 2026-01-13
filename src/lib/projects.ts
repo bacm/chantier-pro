@@ -1,4 +1,4 @@
-import { Project, Decision, DecisionType, ProjectStatus, ProjectCalibration, CalibrationResponse } from '@/types';
+import { Project, Decision, Company, DecisionType, ProjectStatus, ProjectCalibration, CalibrationResponse, SiteReport, WeatherType, SiteObservation } from '@/types';
 import { calculateDecisionImpact, getScoreRiskLevel } from './scoring';
 
 // Generate unique IDs
@@ -45,41 +45,6 @@ export const getProjectStatusLabel = (status: ProjectStatus): string => {
   return status === 'new' ? 'Nouveau projet' : 'Projet en cours';
 };
 
-// Calculate initial score based on calibration
-export const calculateInitialScore = (
-  status: ProjectStatus,
-  projectType: Project['projectType'],
-  calibration: ProjectCalibration
-): number => {
-  // Base score depends on project status
-  let score = status === 'new' ? 75 : 50;
-  
-  // Project type risk modifier
-  const typeModifier = {
-    individual: 0,
-    renovation: -5, // Slightly more risky
-    tertiary: -3,
-  };
-  score += typeModifier[projectType];
-  
-  // Contractual calibration scoring
-  const contractualScore = calculateContractualScore(calibration);
-  score += contractualScore;
-  
-  // Status-specific scoring
-  if (status === 'new') {
-    score += calculateNewProjectScore(calibration);
-  } else {
-    score += calculateOngoingProjectScore(calibration);
-  }
-  
-  // Documentary maturity scoring
-  score += calculateDocumentaryScore(calibration);
-  
-  // Clamp between 0 and 100
-  return Math.max(0, Math.min(100, Math.round(score)));
-};
-
 // Score response helper
 const scoreResponse = (response: CalibrationResponse, yesPoints: number, noPoints: number): number => {
   switch (response) {
@@ -99,20 +64,20 @@ const calculateContractualScore = (calibration: ProjectCalibration): number => {
   return score;
 };
 
-// New project score (Step 3)
+// New project score (Step 3 - Démarrage)
 const calculateNewProjectScore = (calibration: ProjectCalibration): number => {
   let score = 0;
-  if (calibration.companiesChosen) {
-    // Companies chosen = more commitments = more risk
-    score += scoreResponse(calibration.companiesChosen, -2, 2);
+  if (calibration.insuranceVerified) {
+    // Insurances are vital for MOE protection
+    score += scoreResponse(calibration.insuranceVerified, 8, -15);
   }
-  if (calibration.budgetFixed) {
-    // Fixed budget = potential for issues
-    score += scoreResponse(calibration.budgetFixed, -3, 3);
+  if (calibration.docFiled) {
+    // DOC is a legal requirement to start
+    score += scoreResponse(calibration.docFiled, 4, -8);
   }
-  if (calibration.planningCommitted) {
-    // Committed planning = pressure
-    score += scoreResponse(calibration.planningCommitted, -3, 2);
+  if (calibration.pcDisplayed) {
+    // PC display is a risk for third-party appeals
+    score += scoreResponse(calibration.pcDisplayed, 3, -6);
   }
   return score;
 };
@@ -144,6 +109,42 @@ const calculateDocumentaryScore = (calibration: ProjectCalibration): number => {
   return score;
 };
 
+// Calculate initial score based on calibration
+export const calculateInitialScore = (
+  status: ProjectStatus,
+  projectType: Project['projectType'],
+  calibration: ProjectCalibration
+): number => {
+  // Base score depends on project status
+  let score = status === 'new' ? 75 : 50;
+  
+  // Project type risk modifier
+  const typeModifier = {
+    individual: 0,
+    renovation: -5, // Slightly more risky
+    tertiary: -3,
+  };
+  score += typeModifier[projectType];
+  
+  // Contractual calibration scoring
+  const contractualScore = calculateContractualScore(calibration);
+  score += contractualScore;
+  
+  // Status-specific scoring
+  if (status === 'new') {
+    score += calculateNewProjectScore(calibration);
+  }
+  else {
+    score += calculateOngoingProjectScore(calibration);
+  }
+  
+  // Documentary maturity scoring
+  score += calculateDocumentaryScore(calibration);
+  
+  // Clamp between 0 and 100
+  return Math.max(0, Math.min(100, Math.round(score)));
+};
+
 // Local storage helpers
 const STORAGE_KEY = 'chantier-audit-projects';
 
@@ -155,10 +156,20 @@ export const loadProjects = (): Project[] => {
     return projects.map((p: any) => ({
       ...p,
       createdAt: new Date(p.createdAt),
+      startDate: p.startDate ? new Date(p.startDate) : undefined,
+      contractualEndDate: p.contractualEndDate ? new Date(p.contractualEndDate) : undefined,
+      estimatedEndDate: p.estimatedEndDate ? new Date(p.estimatedEndDate) : undefined,
       decisions: (p.decisions || []).map((d: any) => ({
         ...d,
         createdAt: new Date(d.createdAt),
       })),
+      reports: (p.reports || []).map((r: any) => ({
+        ...r,
+        date: new Date(r.date),
+        createdAt: new Date(r.createdAt),
+        observations: r.observations || [],
+      })),
+      companies: p.companies || [],
       status: p.status || 'new',
       calibration: p.calibration || {
         contractSigned: 'unknown',
@@ -188,7 +199,9 @@ export const createProjectFromCalibration = (
   address: string,
   projectType: Project['projectType'],
   status: ProjectStatus,
-  calibration: ProjectCalibration
+  calibration: ProjectCalibration,
+  startDate?: Date,
+  contractualEndDate?: Date
 ): Project => {
   const initialScore = calculateInitialScore(status, projectType, calibration);
   
@@ -200,10 +213,45 @@ export const createProjectFromCalibration = (
     status,
     calibration,
     createdAt: new Date(),
+    startDate,
+    contractualEndDate,
+    estimatedEndDate: contractualEndDate, // By default, estimated = contractual
+    companies: [],
     decisions: [],
+    reports: [],
     initialScore,
     currentScore: initialScore,
     currentRiskLevel: getScoreRiskLevel(initialScore),
+  };
+};
+
+export const createCompany = (
+  name: string,
+  trade: string,
+  hasInsurance: boolean,
+  hasContract: boolean,
+  contactName?: string,
+  email?: string,
+  phone?: string,
+  contractAmount?: number
+): Company => {
+  return {
+    id: generateId(),
+    name,
+    trade,
+    hasInsurance,
+    hasContract,
+    contactName,
+    email,
+    phone,
+    contractAmount,
+  };
+};
+
+export const addCompanyToProject = (project: Project, company: Company): Project => {
+  return {
+    ...project,
+    companies: [...project.companies, company],
   };
 };
 
@@ -212,7 +260,9 @@ export const createDecision = (
   description: string,
   hasWrittenValidation: boolean,
   hasFinancialImpact: boolean,
-  hasProofAttached: boolean
+  hasProofAttached: boolean,
+  companyId?: string,
+  amount?: number
 ): Decision => {
   const scoreImpact = calculateDecisionImpact({
     type,
@@ -220,6 +270,7 @@ export const createDecision = (
     hasWrittenValidation,
     hasFinancialImpact,
     hasProofAttached,
+    companyId,
   });
 
   return {
@@ -229,6 +280,8 @@ export const createDecision = (
     hasWrittenValidation,
     hasFinancialImpact,
     hasProofAttached,
+    companyId,
+    amount,
     createdAt: new Date(),
     scoreImpact,
   };
@@ -245,6 +298,47 @@ export const addDecisionToProject = (project: Project, decision: Decision): Proj
   updatedProject.currentRiskLevel = riskLevel;
   
   return updatedProject;
+};
+
+export const createSiteReport = (
+  date: Date,
+  weather: WeatherType,
+  presentCompanyIds: string[],
+  generalRemarks: string,
+  observations: Omit<SiteObservation, 'id'>[],
+  temperature?: number
+): SiteReport => {
+  return {
+    id: generateId(),
+    date,
+    weather,
+    temperature,
+    presentCompanyIds,
+    generalRemarks,
+    observations: observations.map(obs => ({ ...obs, id: generateId() })),
+    createdAt: new Date(),
+  };
+};
+
+export const addReportToProject = (project: Project, report: SiteReport): Project => {
+  return {
+    ...project,
+    reports: [...(project.reports || []), report],
+  };
+};
+
+export const updateProjectPlanning = (
+  project: Project,
+  startDate?: Date,
+  contractualEndDate?: Date,
+  estimatedEndDate?: Date
+): Project => {
+  return {
+    ...project,
+    startDate,
+    contractualEndDate,
+    estimatedEndDate,
+  };
 };
 
 // Calculate score based on initial calibration + decisions

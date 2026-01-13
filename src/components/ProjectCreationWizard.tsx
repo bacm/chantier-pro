@@ -36,6 +36,8 @@ export const ProjectCreationWizard = ({ onComplete, onCancel }: ProjectCreationW
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [projectType, setProjectType] = useState<Project['projectType'] | null>(null);
+  const [startDate, setStartDate] = useState('');
+  const [contractualEndDate, setContractualEndDate] = useState('');
   
   // Step 2 - Contractual calibration
   const [contractSigned, setContractSigned] = useState<CalibrationResponse | null>(null);
@@ -43,17 +45,17 @@ export const ProjectCreationWizard = ({ onComplete, onCancel }: ProjectCreationW
   const [crFormalized, setCrFormalized] = useState<CalibrationResponse | null>(null);
   const [writtenValidationRequired, setWrittenValidationRequired] = useState<CalibrationResponse | null>(null);
   
-  // Step 3 - New project
-  const [companiesChosen, setCompaniesChosen] = useState<CalibrationResponse | null>(null);
-  const [budgetFixed, setBudgetFixed] = useState<CalibrationResponse | null>(null);
-  const [planningCommitted, setPlanningCommitted] = useState<CalibrationResponse | null>(null);
+  // Step 3 - Démarrage MOE
+  const [insuranceVerified, setInsuranceVerified] = useState<CalibrationResponse | null>(null);
+  const [docFiled, setDocFiled] = useState<CalibrationResponse | null>(null);
+  const [pcDisplayed, setPcDisplayed] = useState<CalibrationResponse | null>(null);
   
-  // Step 3 - Ongoing project
+  // Step 4 - Ongoing project
   const [decisionsWithoutValidation, setDecisionsWithoutValidation] = useState<CalibrationResponse | null>(null);
   const [workStarted, setWorkStarted] = useState<CalibrationResponse | null>(null);
   const [oralChanges, setOralChanges] = useState<CalibrationResponse | null>(null);
   
-  // Step 4 - Documentary maturity
+  // Step 5 - Documentary maturity
   const [proofsCentralized, setProofsCentralized] = useState<CalibrationResponse | null>(null);
   const [decisionsTraceable, setDecisionsTraceable] = useState<CalibrationResponse | null>(null);
   const [financialImpactsDocumented, setFinancialImpactsDocumented] = useState<CalibrationResponse | null>(null);
@@ -69,7 +71,7 @@ export const ProjectCreationWizard = ({ onComplete, onCancel }: ProjectCreationW
                crFormalized !== null && writtenValidationRequired !== null;
       case 3:
         if (status === 'new') {
-          return companiesChosen !== null && budgetFixed !== null && planningCommitted !== null;
+          return insuranceVerified !== null && docFiled !== null && pcDisplayed !== null;
         } else {
           return decisionsWithoutValidation !== null && workStarted !== null && oralChanges !== null;
         }
@@ -89,9 +91,9 @@ export const ProjectCreationWizard = ({ onComplete, onCancel }: ProjectCreationW
       crFormalized: crFormalized!,
       writtenValidationRequired: writtenValidationRequired!,
       ...(status === 'new' ? {
-        companiesChosen: companiesChosen!,
-        budgetFixed: budgetFixed!,
-        planningCommitted: planningCommitted!,
+        insuranceVerified: insuranceVerified!,
+        docFiled: docFiled!,
+        pcDisplayed: pcDisplayed!,
       } : {
         decisionsWithoutValidation: decisionsWithoutValidation!,
         workStarted: workStarted!,
@@ -119,7 +121,9 @@ export const ProjectCreationWizard = ({ onComplete, onCancel }: ProjectCreationW
         address.trim(),
         projectType!,
         status!,
-        calibration
+        calibration,
+        startDate ? new Date(startDate) : undefined,
+        contractualEndDate ? new Date(contractualEndDate) : undefined
       );
       onComplete(project);
     }
@@ -256,6 +260,26 @@ export const ProjectCreationWizard = ({ onComplete, onCancel }: ProjectCreationW
                     onChange={(e) => setAddress(e.target.value)}
                   />
                 </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="startDate">Démarrage (OS)</Label>
+                    <Input
+                      id="startDate"
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="endDate">Fin contractuelle</Label>
+                    <Input
+                      id="endDate"
+                      type="date"
+                      value={contractualEndDate}
+                      onChange={(e) => setContractualEndDate(e.target.value)}
+                    />
+                  </div>
+                </div>
                 <div className="space-y-2">
                   <Label>Type d'opération</Label>
                   <RadioGroup
@@ -320,23 +344,23 @@ export const ProjectCreationWizard = ({ onComplete, onCancel }: ProjectCreationW
           {step === 3 && status === 'new' && (
             <div className="space-y-6">
               <div>
-                <h2 className="font-display text-xl mb-2">Situation du nouveau projet</h2>
+                <h2 className="font-display text-xl mb-2">Démarrage du projet</h2>
                 <p className="text-muted-foreground text-sm">
-                  Ces éléments estiment le potentiel de risque futur.
+                  Points de contrôle critiques pour le Maître d'Œuvre avant ouverture.
                 </p>
               </div>
               <div className="space-y-6">
                 <div className="space-y-2">
-                  <Label>Des entreprises sont-elles déjà choisies ?</Label>
-                  {renderResponseOptions(companiesChosen, setCompaniesChosen, 'companies')}
+                  <Label>Assurances (RC Pro + Décennale) entreprises vérifiées ?</Label>
+                  {renderResponseOptions(insuranceVerified, setInsuranceVerified, 'insurance')}
                 </div>
                 <div className="space-y-2">
-                  <Label>Le budget est-il figé ?</Label>
-                  {renderResponseOptions(budgetFixed, setBudgetFixed, 'budget')}
+                  <Label>Déclaration d'Ouverture de Chantier (DOC) déposée ?</Label>
+                  {renderResponseOptions(docFiled, setDocFiled, 'doc')}
                 </div>
                 <div className="space-y-2">
-                  <Label>Le planning est-il contractuellement engagé ?</Label>
-                  {renderResponseOptions(planningCommitted, setPlanningCommitted, 'planning')}
+                  <Label>Permis de Construire affiché sur le terrain ?</Label>
+                  {renderResponseOptions(pcDisplayed, setPcDisplayed, 'pc')}
                 </div>
               </div>
             </div>

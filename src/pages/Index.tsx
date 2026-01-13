@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Plus, FolderOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Project, Decision } from '@/types';
-import { loadProjects, saveProjects, addDecisionToProject } from '@/lib/projects';
+import { Project, Decision, Company, SiteReport } from '@/types';
+import { loadProjects, saveProjects, addDecisionToProject, addCompanyToProject, addReportToProject, updateProjectPlanning } from '@/lib/projects';
 import { ProjectCard } from '@/components/ProjectCard';
 import { ProjectCreationWizard } from '@/components/ProjectCreationWizard';
 import { ProjectDetail } from '@/components/ProjectDetail';
@@ -51,6 +51,43 @@ const Index = () => {
     toast.success('Décision ajoutée', {
       description: `Impact sur le score: ${decision.scoreImpact >= 0 ? '+' : ''}${decision.scoreImpact}`,
     });
+  };
+
+  const handleCompanyAdded = (company: Company) => {
+    if (!selectedProject) return;
+
+    const updatedProject = addCompanyToProject(selectedProject, company);
+
+    setProjects((prev) => prev.map((p) => (p.id === updatedProject.id ? updatedProject : p)));
+    setSelectedProject(updatedProject);
+
+    toast.success('Entreprise ajoutée', {
+      description: `${company.name} (${company.trade})`,
+    });
+  };
+
+  const handleReportAdded = (report: SiteReport) => {
+    if (!selectedProject) return;
+
+    const updatedProject = addReportToProject(selectedProject, report);
+
+    setProjects((prev) => prev.map((p) => (p.id === updatedProject.id ? updatedProject : p)));
+    setSelectedProject(updatedProject);
+
+    toast.success('Rapport ajouté', {
+      description: `CR du ${report.date.toLocaleDateString()}`,
+    });
+  };
+
+  const handlePlanningUpdated = (startDate?: Date, contractualEndDate?: Date, estimatedEndDate?: Date) => {
+    if (!selectedProject) return;
+
+    const updatedProject = updateProjectPlanning(selectedProject, startDate, contractualEndDate, estimatedEndDate);
+
+    setProjects((prev) => prev.map((p) => (p.id === updatedProject.id ? updatedProject : p)));
+    setSelectedProject(updatedProject);
+
+    toast.success('Planning mis à jour');
   };
 
   const handleBackToDashboard = () => {
@@ -132,6 +169,9 @@ const Index = () => {
         project={selectedProject}
         onBack={handleBackToDashboard}
         onDecisionAdded={handleDecisionAdded}
+        onCompanyAdded={handleCompanyAdded}
+        onReportAdded={handleReportAdded}
+        onPlanningUpdated={handlePlanningUpdated}
       />
     );
   }
