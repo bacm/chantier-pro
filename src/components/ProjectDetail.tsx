@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { ArrowLeft, Plus, Download, Shield, AlertTriangle, TrendingUp, TrendingDown, Minus, Euro, Clock, Calendar } from 'lucide-react';
+import { addDays } from 'date-fns';
+import { ArrowLeft, Plus, Download, Shield, AlertTriangle, TrendingUp, TrendingDown, Minus, Euro, Clock, Calendar, Wind, ClipboardCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Project, Decision, Company, SiteReport } from '@/types';
+import { Project, Decision, Company, SiteReport, Snag, PaymentApplication } from '@/types';
 import { formatDate, getProjectTypeLabel, getProjectStatusLabel, updateProjectPlanning } from '@/lib/projects';
-import { generateProjectStatusPDF } from '@/lib/pdf';
+import { generateProjectStatusPDF, generateAcceptancePDF, generatePaymentCertificatePDF } from '@/lib/pdf';
 import {
   getRiskLevelColor,
   getRiskLevelLabel,
@@ -19,6 +20,11 @@ import { CompanyList } from './CompanyList';
 import { AddReportDialog } from './AddReportDialog';
 import { ReportList } from './ReportList';
 import { AddPlanningDialog } from './AddPlanningDialog';
+import { SnagList } from './SnagList';
+import { AddSnagDialog } from './AddSnagDialog';
+import { FinancialOverview } from './FinancialOverview';
+import { PaymentList } from './PaymentList';
+import { AddPaymentDialog } from './AddPaymentDialog';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -29,16 +35,30 @@ interface ProjectDetailProps {
   onCompanyAdded: (company: Company) => void;
   onReportAdded: (report: SiteReport) => void;
   onPlanningUpdated: (startDate?: Date, contractualEndDate?: Date, estimatedEndDate?: Date) => void;
+  onSnagAdded: (snag: Snag) => void;
+  onSnagToggled: (snagId: string) => void;
+  onPaymentAdded: (payment: PaymentApplication) => void;
 }
 
-export const ProjectDetail = ({ project, onBack, onDecisionAdded, onCompanyAdded, onReportAdded, onPlanningUpdated }: ProjectDetailProps) => {
+export const ProjectDetail = ({ 
+  project, 
+  onBack, 
+  onDecisionAdded, 
+  onCompanyAdded, 
+  onReportAdded, 
+  onPlanningUpdated, 
+  onSnagAdded, 
+  onSnagToggled,
+  onPaymentAdded 
+}: ProjectDetailProps) => {
   const [showAddDecision, setShowAddDecision] = useState(false);
   const [showAddCompany, setShowAddCompany] = useState(false);
   const [showAddReport, setShowAddReport] = useState(false);
   const [showEditPlanning, setShowEditPlanning] = useState(false);
+  const [showAddSnag, setShowAddSnag] = useState(false);
+  const [showAddPayment, setShowAddPayment] = useState(false);
   
   const evolution = calculateScoreEvolution(project);
-  const problematicDecisions = getProblematicDecisions(project.decisions);
 
   // Financial calculations
   const totalMarket = project.companies.reduce((sum, c) => sum + (c.contractAmount || 0), 0);
@@ -47,10 +67,19 @@ export const ProjectDetail = ({ project, onBack, onDecisionAdded, onCompanyAdded
     .reduce((sum, d) => sum + (d.amount || 0), 0);
   const budgetEvolution = totalMarket > 0 ? (totalTMA / totalMarket) * 100 : 0;
 
-  // Planning calculations
+  // Planning & Weather calculations
+  const badWeatherDays = project.reports.filter(r => r.isValidatedBadWeather).length;
+  
+  const getAdjustedContractualDate = () => {
+    if (!project.contractualEndDate) return null;
+    return addDays(project.contractualEndDate, badWeatherDays);
+  };
+  
+  const adjustedContractualDate = getAdjustedContractualDate();
+
   const calculateDelay = () => {
-    if (!project.contractualEndDate || !project.estimatedEndDate) return 0;
-    const diffTime = project.estimatedEndDate.getTime() - project.contractualEndDate.getTime();
+    if (!adjustedContractualDate || !project.estimatedEndDate) return 0;
+    const diffTime = project.estimatedEndDate.getTime() - adjustedContractualDate.getTime();
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   };
   const delay = calculateDelay();
@@ -60,6 +89,11 @@ export const ProjectDetail = ({ project, onBack, onDecisionAdded, onCompanyAdded
     toast.success('PDF généré', {
       description: 'Le rapport a été téléchargé.',
     });
+  };
+
+  const handleExportSnags = () => {
+    generateAcceptancePDF(project);
+    toast.success('Liste des réserves générée');
   };
 
   const handleDecisionAdded = (decision: Decision) => {
@@ -163,8 +197,17 @@ export const ProjectDetail = ({ project, onBack, onDecisionAdded, onCompanyAdded
             {project.contractualEndDate ? (
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <div className="text-xl font-bold">{formatDate(project.contractualEndDate)}</div>
-                  <div className="text-[10px] text-muted-foreground uppercase tracking-wider">Fin Contractuelle</div>
+                  <div className="text-xl font-bold">
+                    {adjustedContractualDate ? formatDate(adjustedContractualDate) : '-'}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                    Fin Contractuelle {badWeatherDays > 0 ? '(décalée)' : ''}
+                  </div>
+                  {badWeatherDays > 0 && (
+                    <div className="text-[10px] text-amber-600 font-medium mt-1 flex items-center gap-1">
+                      <Wind className="h-2.5 w-2.5" /> +{badWeatherDays}j intempéries
+                    </div>
+                  )}
                 </div>
                 <div>
                   <div className={cn("text-xl font-bold", delay > 0 ? "text-red-600" : "text-emerald-600")}>
@@ -206,10 +249,12 @@ export const ProjectDetail = ({ project, onBack, onDecisionAdded, onCompanyAdded
 
         {/* Tabs section */}
         <Tabs defaultValue="decisions" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-4">
-            <TabsTrigger value="decisions">Journal des Décisions</TabsTrigger>
-            <TabsTrigger value="companies">Intervenants & Lots</TabsTrigger>
-            <TabsTrigger value="reports">Vie de Chantier</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-5 mb-4">
+            <TabsTrigger value="decisions">Journal</TabsTrigger>
+            <TabsTrigger value="companies">Intervenants</TabsTrigger>
+            <TabsTrigger value="finance">Finances</TabsTrigger>
+            <TabsTrigger value="reports">Visites</TabsTrigger>
+            <TabsTrigger value="snags">Réserves (OPR)</TabsTrigger>
           </TabsList>
           
           <TabsContent value="decisions" className="bg-card border border-border rounded-lg mt-0">
@@ -232,6 +277,29 @@ export const ProjectDetail = ({ project, onBack, onDecisionAdded, onCompanyAdded
             />
           </TabsContent>
 
+          <TabsContent value="finance">
+            <div className="flex flex-col gap-6">
+              <div className="flex items-center justify-between">
+                <h2 className="font-display text-lg">Situation Financière</h2>
+                <Button onClick={() => setShowAddPayment(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Saisir une situation
+                </Button>
+              </div>
+              
+              <FinancialOverview project={project} />
+              
+              <div className="bg-card border border-border rounded-lg p-4">
+                <h3 className="font-medium mb-4">Historique des situations</h3>
+                <PaymentList 
+                  project={project} 
+                  payments={project.payments || []}
+                  onGenerateCertificate={(p) => generatePaymentCertificatePDF(project, p)}
+                />
+              </div>
+            </div>
+          </TabsContent>
+
           <TabsContent value="reports">
             <ReportList
               reports={project.reports || []}
@@ -239,6 +307,31 @@ export const ProjectDetail = ({ project, onBack, onDecisionAdded, onCompanyAdded
               project={project}
               onAddReport={() => setShowAddReport(true)}
             />
+          </TabsContent>
+
+          <TabsContent value="snags">
+            <div className="flex items-center justify-between p-4 bg-card border border-border rounded-t-lg border-b-0">
+              <h2 className="font-display text-lg flex items-center gap-2">
+                <ClipboardCheck className="h-5 w-5 text-muted-foreground" /> Suivi des Réserves
+              </h2>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={handleExportSnags}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Exporter OPR
+                </Button>
+                <Button onClick={() => setShowAddSnag(true)} size="sm">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Nouvelle réserve
+                </Button>
+              </div>
+            </div>
+            <div className="bg-card border border-border rounded-b-lg p-4">
+              <SnagList 
+                project={project} 
+                onToggleSnag={onSnagToggled} 
+                onAddSnag={() => setShowAddSnag(true)} 
+              />
+            </div>
           </TabsContent>
         </Tabs>
 
@@ -256,38 +349,34 @@ export const ProjectDetail = ({ project, onBack, onDecisionAdded, onCompanyAdded
           onCompanyAdded={handleCompanyAdded}
         />
 
-                <AddReportDialog
+        <AddReportDialog
+          open={showAddReport}
+          onOpenChange={setShowAddReport}
+          onReportAdded={handleReportAdded}
+          companies={project.companies}
+        />
 
-                  open={showAddReport}
+        <AddPlanningDialog
+          open={showEditPlanning}
+          onOpenChange={setShowEditPlanning}
+          onPlanningUpdated={onPlanningUpdated}
+          project={project}
+        />
 
-                  onOpenChange={setShowAddReport}
-
-                  onReportAdded={handleReportAdded}
-
-                  companies={project.companies}
-
-                />
-
+        <AddSnagDialog
+          open={showAddSnag}
+          onOpenChange={setShowAddSnag}
+          onSnagAdded={onSnagAdded}
+          companies={project.companies}
+        />
         
-
-                <AddPlanningDialog
-
-                  open={showEditPlanning}
-
-                  onOpenChange={setShowEditPlanning}
-
-                  onPlanningUpdated={onPlanningUpdated}
-
-                  project={project}
-
-                />
-
-              </div>
-
-            </div>
-
-          );
-
-        };
-
-        
+        <AddPaymentDialog
+          open={showAddPayment}
+          onOpenChange={setShowAddPayment}
+          onPaymentAdded={(p) => { onPaymentAdded(p); setShowAddPayment(false); }}
+          project={project}
+        />
+      </div>
+    </div>
+  );
+};

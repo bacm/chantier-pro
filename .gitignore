@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Ralph
+plan.md
+prd.json
+progress.txt
+archive/
+.last-project

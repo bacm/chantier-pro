@@ -1,7 +1,7 @@
 import { SiteReport, Company, WeatherType, Project } from '@/types';
 import { formatDate } from '@/lib/projects';
 import { generateSiteReportPDF } from '@/lib/pdf';
-import { Sun, Cloud, CloudRain, CloudLightning, Snowflake, Calendar as CalendarIcon, Users, Download, ListChecks } from 'lucide-react';
+import { Sun, Cloud, CloudRain, CloudLightning, Snowflake, Calendar as CalendarIcon, Users, Download, ListChecks, Wind } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -69,6 +69,12 @@ export const ReportList = ({ reports, companies, project, onAddReport }: ReportL
                 <span className="capitalize">{report.weather === 'rain' ? 'Pluie' : report.weather === 'sunny' ? 'Ensoleillé' : report.weather === 'cloudy' ? 'Nuageux' : report.weather === 'storm' ? 'Orage' : 'Neige'}</span>
                 {report.temperature && <span>• {report.temperature}°C</span>}
               </div>
+              {report.isValidatedBadWeather && (
+                <Badge variant="secondary" className="bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100 gap-1">
+                  <Wind className="h-3 w-3" /> Intempérie
+                </Badge>
+              )}
+
             </div>
             <Button variant="ghost" size="icon" onClick={() => handleExportPDF(report)}>
               <Download className="h-4 w-4 text-muted-foreground" />

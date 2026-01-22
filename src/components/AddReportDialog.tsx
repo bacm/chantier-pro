@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Calendar as CalendarIcon, Sun, Cloud, CloudRain, CloudLightning, Snowflake, Trash2, MessageSquare } from 'lucide-react';
+import { Plus, Calendar as CalendarIcon, Sun, Cloud, CloudRain, CloudLightning, Snowflake, Trash2, MessageSquare, BookOpen, Wind } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -23,6 +23,18 @@ import {
 import { SiteReport, WeatherType, Company, SiteObservation } from '@/types';
 import { createSiteReport } from '@/lib/projects';
 
+// Standard observations library
+const OBSERVATION_PRESETS = [
+  { category: 'Sécurité', text: 'Port des EPI obligatoire non respecté' },
+  { category: 'Sécurité', text: 'Garde-corps manquant / non conforme' },
+  { category: 'Propreté', text: 'Nettoyage du poste de travail nécessaire' },
+  { category: 'Propreté', text: 'Évacuation des gravats à prévoir' },
+  { category: 'Technique', text: 'Conformité au plan à vérifier' },
+  { category: 'Technique', text: 'Reprise de malfaçon demandée' },
+  { category: 'Délais', text: 'Effectif insuffisant sur site' },
+  { category: 'Délais', text: 'Retard sur planning d\'exécution' },
+];
+
 interface AddReportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -42,6 +54,7 @@ export const AddReportDialog = ({ open, onOpenChange, onReportAdded, companies }
   const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [weather, setWeather] = useState<WeatherType>('sunny');
   const [temperature, setTemperature] = useState<string>('');
+  const [isValidatedBadWeather, setIsValidatedBadWeather] = useState(false);
   const [generalRemarks, setGeneralRemarks] = useState('');
   const [presentCompanyIds, setPresentCompanyIds] = useState<string[]>([]);
   
@@ -84,7 +97,8 @@ export const AddReportDialog = ({ open, onOpenChange, onReportAdded, companies }
       presentCompanyIds,
       generalRemarks.trim(),
       observations,
-      temperature ? parseFloat(temperature) : undefined
+      temperature ? parseFloat(temperature) : undefined,
+      isValidatedBadWeather
     );
     
     onReportAdded(report);
@@ -93,6 +107,7 @@ export const AddReportDialog = ({ open, onOpenChange, onReportAdded, companies }
     setDate(new Date().toISOString().split('T')[0]);
     setWeather('sunny');
     setTemperature('');
+    setIsValidatedBadWeather(false);
     setGeneralRemarks('');
     setPresentCompanyIds([]);
     setObservations([]);
@@ -132,23 +147,41 @@ export const AddReportDialog = ({ open, onOpenChange, onReportAdded, companies }
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label>Météo</Label>
-            <Select value={weather} onValueChange={(v) => setWeather(v as WeatherType)}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {WEATHER_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    <div className="flex items-center gap-2">
-                      <option.icon className="h-4 w-4" />
-                      {option.label}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Météo</Label>
+              <Select value={weather} onValueChange={(v) => setWeather(v as WeatherType)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {WEATHER_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      <div className="flex items-center gap-2">
+                        <option.icon className="h-4 w-4" />
+                        {option.label}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="flex items-end pb-2">
+              <div className="flex items-center space-x-2 bg-amber-50 border border-amber-200 p-2 rounded-md w-full">
+                <Checkbox 
+                  id="bad-weather" 
+                  checked={isValidatedBadWeather}
+                  onCheckedChange={(checked) => setIsValidatedBadWeather(!!checked)}
+                />
+                <Label 
+                  htmlFor="bad-weather" 
+                  className="text-xs font-medium text-amber-900 cursor-pointer flex items-center gap-1"
+                >
+                  <Wind className="h-3 w-3" /> Jour d'intempérie
+                </Label>
+              </div>
+            </div>
           </div>
 
           <div className="space-y-3">
@@ -185,8 +218,8 @@ export const AddReportDialog = ({ open, onOpenChange, onReportAdded, companies }
             <div className="space-y-2">
               <div className="flex gap-2">
                 <Select value={newObsCompanyId} onValueChange={setNewObsCompanyId}>
-                  <SelectTrigger className="w-[180px] h-9 text-xs">
-                    <SelectValue placeholder="Lot concerné" />
+                  <SelectTrigger className="w-[140px] h-9 text-xs">
+                    <SelectValue placeholder="Lot" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Général</SelectItem>
@@ -197,13 +230,31 @@ export const AddReportDialog = ({ open, onOpenChange, onReportAdded, companies }
                     ))}
                   </SelectContent>
                 </Select>
-                <Input 
-                  placeholder="Nouvelle observation..." 
-                  value={newObsText}
-                  onChange={(e) => setNewObsText(e.target.value)}
-                  className="h-9 text-xs"
-                  onKeyDown={(e) => { if(e.key === 'Enter') { e.preventDefault(); addObservation(); } }}
-                />
+                
+                <div className="flex-1 flex gap-1">
+                  <Input 
+                    placeholder="Nouvelle observation..." 
+                    value={newObsText}
+                    onChange={(e) => setNewObsText(e.target.value)}
+                    className="h-9 text-xs"
+                    onKeyDown={(e) => { if(e.key === 'Enter') { e.preventDefault(); addObservation(); } }}
+                  />
+                  <Select onValueChange={(val) => setNewObsText(val)}>
+                    <SelectTrigger className="w-[40px] h-9 p-0 flex justify-center">
+                      <BookOpen className="h-4 w-4 text-muted-foreground" />
+                    </SelectTrigger>
+                    <SelectContent align="end">
+                      {/* Presets grouped by category could be better, but let's start simple */}
+                      {OBSERVATION_PRESETS.map((preset, i) => (
+                        <SelectItem key={i} value={preset.text} className="text-xs">
+                          <span className="text-[10px] uppercase font-bold text-muted-foreground mr-2">[{preset.category}]</span>
+                          {preset.text}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <Button type="button" size="sm" onClick={addObservation} className="h-9">
                   Ajouter
                 </Button>

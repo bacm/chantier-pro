@@ -167,7 +167,18 @@ export const loadProjects = (): Project[] => {
         ...r,
         date: new Date(r.date),
         createdAt: new Date(r.createdAt),
+        isValidatedBadWeather: r.isValidatedBadWeather || false,
         observations: r.observations || [],
+      })),
+      snags: (p.snags || []).map((s: any) => ({
+        ...s,
+        foundDate: new Date(s.foundDate),
+        clearedDate: s.clearedDate ? new Date(s.clearedDate) : undefined,
+      })),
+      payments: (p.payments || []).map((pay: any) => ({
+        ...pay,
+        date: new Date(pay.date),
+        period: new Date(pay.period),
       })),
       companies: p.companies || [],
       status: p.status || 'new',
@@ -219,9 +230,50 @@ export const createProjectFromCalibration = (
     companies: [],
     decisions: [],
     reports: [],
+    snags: [],
+    payments: [],
     initialScore,
     currentScore: initialScore,
     currentRiskLevel: getScoreRiskLevel(initialScore),
+  };
+};
+
+export const createSnag = (
+  description: string,
+  companyId: string,
+  location?: string
+): Snag => {
+  return {
+    id: generateId(),
+    description,
+    companyId,
+    location,
+    isCleared: false,
+    foundDate: new Date(),
+  };
+};
+
+export const addSnagToProject = (project: Project, snag: Snag): Project => {
+  return {
+    ...project,
+    snags: [...(project.snags || []), snag],
+  };
+};
+
+export const toggleSnagStatus = (project: Project, snagId: string): Project => {
+  return {
+    ...project,
+    snags: (project.snags || []).map(s => {
+      if (s.id === snagId) {
+        const isCleared = !s.isCleared;
+        return {
+          ...s,
+          isCleared,
+          clearedDate: isCleared ? new Date() : undefined,
+        };
+      }
+      return s;
+    }),
   };
 };
 
@@ -262,7 +314,9 @@ export const createDecision = (
   hasFinancialImpact: boolean,
   hasProofAttached: boolean,
   companyId?: string,
-  amount?: number
+  amount?: number,
+  proofLabel?: string,
+  proofUrl?: string
 ): Decision => {
   const scoreImpact = calculateDecisionImpact({
     type,
@@ -282,6 +336,8 @@ export const createDecision = (
     hasProofAttached,
     companyId,
     amount,
+    proofLabel,
+    proofUrl,
     createdAt: new Date(),
     scoreImpact,
   };
@@ -306,13 +362,15 @@ export const createSiteReport = (
   presentCompanyIds: string[],
   generalRemarks: string,
   observations: Omit<SiteObservation, 'id'>[],
-  temperature?: number
+  temperature?: number,
+  isValidatedBadWeather: boolean = false
 ): SiteReport => {
   return {
     id: generateId(),
     date,
     weather,
     temperature,
+    isValidatedBadWeather,
     presentCompanyIds,
     generalRemarks,
     observations: observations.map(obs => ({ ...obs, id: generateId() })),

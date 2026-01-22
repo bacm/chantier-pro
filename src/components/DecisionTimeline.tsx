@@ -1,7 +1,7 @@
 import { Decision } from '@/types';
 import { formatDateTime } from '@/lib/projects';
 import { DECISION_TYPE_LABELS } from '@/lib/scoring';
-import { FileText, AlertTriangle, Check, Euro, Clock } from 'lucide-react';
+import { FileText, AlertTriangle, Check, Euro, Clock, ExternalLink, Paperclip } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 interface DecisionTimelineProps {
@@ -48,7 +48,7 @@ export const DecisionTimeline = ({ decisions }: DecisionTimelineProps) => {
                 </span>
               </div>
               <p className="text-sm">{decision.description}</p>
-              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
                 {decision.hasWrittenValidation && (
                   <span className="flex items-center gap-1">
                     <FileText className="h-3 w-3" />
@@ -59,12 +59,28 @@ export const DecisionTimeline = ({ decisions }: DecisionTimelineProps) => {
                   <span className="flex items-center gap-1">
                     <Euro className="h-3 w-3" />
                     Impact financier
+                    {decision.amount !== undefined && (
+                      <span className={decision.amount > 0 ? "text-emerald-600 font-medium" : "text-red-600 font-medium"}>
+                        ({decision.amount > 0 ? '+' : ''}{decision.amount} €)
+                      </span>
+                    )}
                   </span>
                 )}
                 {decision.hasProofAttached && (
-                  <span className="flex items-center gap-1">
-                    <Check className="h-3 w-3" />
-                    Preuve jointe
+                  <span className="flex items-center gap-1" title={decision.proofLabel}>
+                    <Paperclip className="h-3 w-3" />
+                    {decision.proofLabel || 'Preuve jointe'}
+                    {decision.proofUrl && (
+                      <a 
+                        href={decision.proofUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-primary hover:underline inline-flex items-center ml-1"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    )}
                   </span>
                 )}
               </div>

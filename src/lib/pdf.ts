@@ -1,6 +1,391 @@
-import { Project, RiskLevel, CalibrationResponse, SiteReport, WeatherType, Company, Decision } from '@/types';
+import { Project, RiskLevel, CalibrationResponse, SiteReport, WeatherType, Company, Decision, Snag, PaymentApplication } from '@/types';
 import { formatDate, formatDateTime, getProjectTypeLabel, getProjectStatusLabel } from './projects';
 import { getRiskLevelLabel, DECISION_TYPE_LABELS, getProblematicDecisions, getPositiveDecisions } from './scoring';
+import { getCompanyContractTotal, calculatePaymentDetails } from './finance';
+
+export const generatePaymentCertificatePDF = (project: Project, payment: PaymentApplication) => {
+  const company = project.companies.find(c => c.id === payment.companyId);
+  if (!company) return;
+
+  const { contractTotal, currentAmount, previousAmount, netAmount, retenueAmount, monthlyAmount } = (() => {
+    // Re-calculate details locally or use helper
+    // We need 'monthlyAmount' (Amount of THIS payment) which is Current - Previous
+    // The helper 'calculatePaymentDetails' gives us current, retenue, net (of current cumulative? no, net is usually "Net to Pay this month").
+    // Let's check calculatePaymentDetails in finance.ts.
+    // It returns: { contractTotal, currentAmount, currentPercentage, retenueAmount, netAmount (current - retenue) }
+    // It does NOT calculate "This Month" explicitly, only Cumulative Net.
+    // Wait, Payment Certificate is usually for the *difference* (the amount to pay NOW).
+    
+    const details = calculatePaymentDetails(project, payment);
+    const prev = payment.previousCumulativeAmount || 0;
+    const monthly = details.currentAmount - prev;
+    const retenueOnMonthly = payment.hasRetenueGarantie ? monthly * 0.05 : 0;
+    const netToPay = monthly - retenueOnMonthly;
+
+    return {
+      contractTotal: details.contractTotal,
+      currentAmount: details.currentAmount,
+      previousAmount: prev,
+      monthlyAmount: monthly,
+      retenueAmount: retenueOnMonthly,
+      netAmount: netToPay
+    };
+  })();
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html lang="fr">
+    <head>
+      <meta charset="UTF-8">
+      <title>Certificat de Paiement n°${payment.number} - ${company.name}</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+          font-family: 'Helvetica', 'Arial', sans-serif;
+          font-size: 10pt;
+          line-height: 1.4;
+          color: #333;
+          padding: 40px;
+          max-width: 850px;
+          margin: 0 auto;
+        }
+        .header {
+          display: flex;
+          justify-content: space-between;
+          border-bottom: 3px solid #1a1a2e;
+          padding-bottom: 20px;
+          margin-bottom: 30px;
+        }
+        .title-box {
+          text-align: right;
+        }
+        .certif-title {
+          font-size: 16pt;
+          font-weight: bold;
+          text-transform: uppercase;
+          color: #1a1a2e;
+          margin-bottom: 5px;
+        }
+        .project-info {
+          font-size: 11pt;
+          font-weight: bold;
+        }
+        .company-box {
+          background: #f8f9fa;
+          padding: 15px;
+          border-radius: 4px;
+          margin-bottom: 30px;
+          border: 1px solid #ddd;
+        }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-bottom: 30px;
+        }
+        th, td {
+          padding: 10px;
+          border-bottom: 1px solid #ddd;
+        }
+        th {
+          text-align: left;
+          background: #f1f5f9;
+          font-weight: bold;
+        }
+        .amount-col {
+          text-align: right;
+          font-family: 'Courier New', monospace;
+          font-weight: bold;
+        }
+        .total-row {
+          background: #e2e8f0;
+          font-weight: bold;
+          font-size: 11pt;
+        }
+        .footer {
+          margin-top: 50px;
+          display: flex;
+          justify-content: space-between;
+        }
+        .sign-box {
+          border: 1px solid #ccc;
+          width: 200px;
+          height: 120px;
+          padding: 10px;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <div>
+          <div style="font-size: 10pt; color: #666; margin-bottom: 5px;">PROJET</div>
+          <div class="project-info">${project.name}</div>
+          <div>${project.address}</div>
+        </div>
+        <div class="title-box">
+          <div class="certif-title">Certificat de Paiement N°${payment.number}</div>
+          <div>Date : ${formatDate(payment.date)}</div>
+          <div>Période : ${payment.period.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}</div>
+        </div>
+      </div>
+
+      <div class="company-box">
+        <div style="font-size: 9pt; color: #666; text-transform: uppercase; margin-bottom: 5px;">Titulaire du lot ${company.trade}</div>
+        <div style="font-size: 12pt; font-weight: bold;">${company.name}</div>
+        ${company.hasContract ? '<div style="color: #059669; font-size: 9pt; margin-top: 5px;">✓ Marché signé</div>' : ''}
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Désignation</th>
+            <th class="amount-col">Montant HT</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Montant du Marché Initial</td>
+            <td class="amount-col">${(company.contractAmount || 0).toLocaleString('fr-FR')} €</td>
+          </tr>
+          <tr>
+            <td>Montant des Avenants validés</td>
+            <td class="amount-col">${(contractTotal - (company.contractAmount || 0)).toLocaleString('fr-FR')} €</td>
+          </tr>
+          <tr style="background: #f8f9fa;">
+            <td><strong>Montant du Marché à jour</strong></td>
+            <td class="amount-col">${contractTotal.toLocaleString('fr-FR')} €</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Décompte de la situation</th>
+            <th class="amount-col">Montant HT</th>
+            <th class="amount-col">%</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Avancement cumulé à ce jour</td>
+            <td class="amount-col">${currentAmount.toLocaleString('fr-FR')} €</td>
+            <td class="amount-col">${((currentAmount / contractTotal) * 100).toFixed(2)} %</td>
+          </tr>
+          <tr>
+            <td>Avancement précédent</td>
+            <td class="amount-col">- ${previousAmount.toLocaleString('fr-FR')} €</td>
+            <td class="amount-col"></td>
+          </tr>
+          <tr style="font-weight: bold;">
+            <td>Montant de l'acompte (différence)</td>
+            <td class="amount-col">${monthlyAmount.toLocaleString('fr-FR')} €</td>
+            <td class="amount-col"></td>
+          </tr>
+          ${payment.hasRetenueGarantie ? `
+            <tr>
+              <td>Retenue de Garantie (5%)</td>
+              <td class="amount-col" style="color: #dc2626;">- ${retenueAmount.toLocaleString('fr-FR')} €</td>
+              <td class="amount-col"></td>
+            </tr>
+          ` : ''}
+          <tr class="total-row">
+            <td>NET À PAYER (HT)</td>
+            <td class="amount-col" style="color: #1a1a2e;">${netAmount.toLocaleString('fr-FR')} €</td>
+            <td class="amount-col"></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style="font-size: 9pt; color: #666; margin-bottom: 30px;">
+        Note : La TVA est à ajouter au montant HT selon le taux en vigueur (généralement 20%).
+        <br/>Ce certificat est délivré pour valider l'avancement des travaux et permettre la facturation.
+      </div>
+
+      <div class="footer">
+        <div class="sign-box">
+          <strong>Le Maître d'Œuvre</strong>
+          <div style="font-size: 8pt; margin-top: 5px;">Bon pour acompte de <br/><b>${netAmount.toLocaleString('fr-FR')} € HT</b></div>
+          <div style="margin-top: 40px; font-size: 8pt;">Date et Signature :</div>
+        </div>
+        <div class="sign-box">
+          <strong>Le Maître d'Ouvrage</strong>
+          <div style="font-size: 8pt; margin-top: 5px;">Bon pour accord</div>
+          <div style="margin-top: 40px; font-size: 8pt;">Date et Signature :</div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  const printWindow = window.open('', '_blank');
+  if (printWindow) {
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 250);
+  }
+};
+
+export const generateAcceptancePDF = (project: Project) => {
+  const snags = project.snags || [];
+  const openSnags = snags.filter(s => !s.isCleared);
+  const clearedSnags = snags.filter(s => s.isCleared);
+
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html lang="fr">
+    <head>
+      <meta charset="UTF-8">
+      <title>Liste des Réserves - ${project.name}</title>
+      <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+          font-family: 'Helvetica', 'Arial', sans-serif;
+          font-size: 10pt;
+          line-height: 1.4;
+          color: #333;
+          padding: 30px;
+          max-width: 850px;
+          margin: 0 auto;
+        }
+        .header {
+          border-bottom: 3px solid #1a1a2e;
+          padding-bottom: 15px;
+          margin-bottom: 25px;
+          display: flex;
+          justify-content: space-between;
+        }
+        .section { margin-bottom: 20px; }
+        .section-title {
+          font-size: 11pt;
+          font-weight: bold;
+          text-transform: uppercase;
+          background: #1a1a2e;
+          color: white;
+          padding: 5px 10px;
+          margin-bottom: 10px;
+        }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+        }
+        th, td {
+          border: 1px solid #ddd;
+          padding: 8px;
+          text-align: left;
+        }
+        th { background: #eee; font-size: 9pt; }
+        .status-cleared { color: #059669; font-weight: bold; }
+        .status-open { color: #dc2626; font-weight: bold; }
+        .footer {
+          margin-top: 40px;
+          padding-top: 15px;
+          border-top: 1px solid #eee;
+          display: flex;
+          justify-content: space-around;
+          font-size: 9pt;
+        }
+        .sign-box {
+          border: 1px solid #ddd;
+          width: 200px;
+          height: 100px;
+          margin-top: 10px;
+          padding: 5px;
+          font-size: 8pt;
+          color: #999;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <div>
+          <h1 style="font-size: 18pt; color: #1a1a2e;">LISTE DES RÉSERVES (OPR)</h1>
+          <div style="font-size: 12pt; font-weight: bold; margin-top: 5px;">${project.name}</div>
+        </div>
+        <div style="text-align: right;">
+          <div>Édité le ${formatDate(new Date())}</div>
+          <div style="font-weight: bold; margin-top: 5px;">
+            Taux de levée : ${snags.length > 0 ? Math.round((clearedSnags.length / snags.length) * 100) : 0}%
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">1. Réserves en cours (${openSnags.length})</div>
+        ${openSnags.length > 0 ? `
+          <table>
+            <thead>
+              <tr>
+                <th>Lot</th>
+                <th>Localisation</th>
+                <th>Description du défaut</th>
+                <th>Date constat</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${openSnags.map(s => `
+                <tr>
+                  <td>${project.companies.find(c => c.id === s.companyId)?.trade || '-'}</td>
+                  <td>${s.location || '-'}</td>
+                  <td>${s.description}</td>
+                  <td>${formatDate(s.foundDate)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        ` : '<p>Aucune réserve en cours.</p>'}
+      </div>
+
+      <div class="section">
+        <div class="section-title">2. Réserves levées (${clearedSnags.length})</div>
+        ${clearedSnags.length > 0 ? `
+          <table>
+            <thead>
+              <tr>
+                <th>Lot</th>
+                <th>Description</th>
+                <th>Date levée</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${clearedSnags.map(s => `
+                <tr>
+                  <td>${project.companies.find(c => c.id === s.companyId)?.trade || '-'}</td>
+                  <td>${s.description}</td>
+                  <td class="status-cleared">${s.clearedDate ? formatDate(s.clearedDate) : 'Oui'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        ` : '<p>Aucune réserve levée.</p>'}
+      </div>
+
+      <div class="footer">
+        <div>
+          <strong>Le Maître d'Ouvrage</strong>
+          <div class="sign-box">Signature & Bon pour accord</div>
+        </div>
+        <div>
+          <strong>Le Maître d'Œuvre</strong>
+          <div class="sign-box">Signature</div>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  const printWindow = window.open('', '_blank');
+  if (printWindow) {
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 250);
+  }
+};
 
 export const generateProjectStatusPDF = (project: Project) => {
   const problematicDecisions = getProblematicDecisions(project.decisions);
@@ -445,7 +830,10 @@ export const generateSiteReportPDF = (project: Project, report: SiteReport) => {
         </div>
         <div style="text-align: right;">
           <div style="font-size: 12pt; font-weight: bold;">Visite du ${formatDate(report.date)}</div>
-          <div style="margin-top: 5px;">Météo : ${getWeatherLabel(report.weather)} ${report.temperature ? `(${report.temperature}°C)` : ''}</div>
+          <div style="margin-top: 5px;">
+            Météo : ${getWeatherLabel(report.weather)} ${report.temperature ? `(${report.temperature}°C)` : ''}
+            ${report.isValidatedBadWeather ? '<br/><span style="color: #d97706; font-weight: bold;">⚠️ JOUR D\'INTEMPÉRIE VALIDÉ</span>' : ''}
+          </div>
         </div>
       </div>
 

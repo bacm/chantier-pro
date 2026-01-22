@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
+import { AuthProvider } from '@/auth/AuthProvider';
 import { Plus, FolderOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Project, Decision, Company, SiteReport } from '@/types';
-import { loadProjects, saveProjects, addDecisionToProject, addCompanyToProject, addReportToProject, updateProjectPlanning } from '@/lib/projects';
+import { Project, Decision, Company, SiteReport, Snag, PaymentApplication } from '@/types';
+import { loadProjects, saveProjects, addDecisionToProject, addCompanyToProject, addReportToProject, updateProjectPlanning, addSnagToProject, toggleSnagStatus } from '@/lib/projects';
+import { savePaymentToProject } from '@/lib/finance';
 import { ProjectCard } from '@/components/ProjectCard';
 import { ProjectCreationWizard } from '@/components/ProjectCreationWizard';
 import { ProjectDetail } from '@/components/ProjectDetail';
+import { MoeCockpit } from '@/components/MoeCockpit';
 import { toast } from 'sonner';
 
 type ViewState = 'dashboard' | 'create' | 'detail';
@@ -79,6 +82,39 @@ const Index = () => {
     });
   };
 
+  const handleSnagAdded = (snag: Snag) => {
+    if (!selectedProject) return;
+
+    const updatedProject = addSnagToProject(selectedProject, snag);
+
+    setProjects((prev) => prev.map((p) => (p.id === updatedProject.id ? updatedProject : p)));
+    setSelectedProject(updatedProject);
+
+    toast.success('Réserve ajoutée');
+  };
+
+  const handleSnagToggled = (snagId: string) => {
+    if (!selectedProject) return;
+
+    const updatedProject = toggleSnagStatus(selectedProject, snagId);
+
+    setProjects((prev) => prev.map((p) => (p.id === updatedProject.id ? updatedProject : p)));
+    setSelectedProject(updatedProject);
+  };
+
+  const handlePaymentAdded = (payment: PaymentApplication) => {
+    if (!selectedProject) return;
+
+    const updatedProject = savePaymentToProject(selectedProject, payment);
+
+    setProjects((prev) => prev.map((p) => (p.id === updatedProject.id ? updatedProject : p)));
+    setSelectedProject(updatedProject);
+
+    toast.success('Situation enregistrée', {
+      description: `Situation n°${payment.number} validée`,
+    });
+  };
+
   const handlePlanningUpdated = (startDate?: Date, contractualEndDate?: Date, estimatedEndDate?: Date) => {
     if (!selectedProject) return;
 
@@ -109,6 +145,9 @@ const Index = () => {
               Maîtrisez le risque juridique de vos projets
             </p>
           </header>
+
+          {/* Global Cockpit */}
+          <MoeCockpit projects={projects} />
 
           {/* Action bar */}
           <div className="flex justify-between items-center mb-8">
@@ -172,6 +211,9 @@ const Index = () => {
         onCompanyAdded={handleCompanyAdded}
         onReportAdded={handleReportAdded}
         onPlanningUpdated={handlePlanningUpdated}
+        onSnagAdded={handleSnagAdded}
+        onSnagToggled={handleSnagToggled}
+        onPaymentAdded={handlePaymentAdded}
       />
     );
   }
@@ -179,4 +221,4 @@ const Index = () => {
   return null;
 };
 
-export default Index;
+export default () => <AuthProvider><Index /></AuthProvider>;

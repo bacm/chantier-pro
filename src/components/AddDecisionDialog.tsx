@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, FileText, AlertTriangle, Check, Euro, Building2 } from 'lucide-react';
+import { Plus, FileText, AlertTriangle, Check, Euro, Building2, Link, Image } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -38,6 +38,8 @@ export const AddDecisionDialog = ({ open, onOpenChange, onDecisionAdded, compani
   const [hasFinancialImpact, setHasFinancialImpact] = useState(false);
   const [amount, setAmount] = useState<string>('');
   const [hasProofAttached, setHasProofAttached] = useState(false);
+  const [proofLabel, setProofLabel] = useState('');
+  const [proofUrl, setProofUrl] = useState('');
 
   const previewImpact = calculateDecisionImpact({
     type,
@@ -59,7 +61,9 @@ export const AddDecisionDialog = ({ open, onOpenChange, onDecisionAdded, compani
       hasFinancialImpact,
       hasProofAttached,
       companyId === 'none' ? undefined : companyId,
-      amount ? parseFloat(amount) : undefined
+      amount ? parseFloat(amount) : undefined,
+      proofLabel.trim() || undefined,
+      proofUrl.trim() || undefined
     );
     
     onDecisionAdded(decision);
@@ -72,6 +76,8 @@ export const AddDecisionDialog = ({ open, onOpenChange, onDecisionAdded, compani
     setHasFinancialImpact(false);
     setAmount('');
     setHasProofAttached(false);
+    setProofLabel('');
+    setProofUrl('');
     onOpenChange(false);
   };
 
@@ -187,18 +193,51 @@ export const AddDecisionDialog = ({ open, onOpenChange, onDecisionAdded, compani
               )}
             </div>
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Check className="h-4 w-4 text-muted-foreground" />
-                <Label htmlFor="proof" className="font-normal cursor-pointer">
-                  Preuve jointe (Visa, Photo, Constat)
-                </Label>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Check className="h-4 w-4 text-muted-foreground" />
+                  <Label htmlFor="proof" className="font-normal cursor-pointer">
+                    Preuve jointe (Visa, Photo, Constat)
+                  </Label>
+                </div>
+                <Switch
+                  id="proof"
+                  checked={hasProofAttached}
+                  onCheckedChange={setHasProofAttached}
+                />
               </div>
-              <Switch
-                id="proof"
-                checked={hasProofAttached}
-                onCheckedChange={setHasProofAttached}
-              />
+
+              {hasProofAttached && (
+                <div className="ml-6 space-y-3 animate-in fade-in slide-in-from-top-2">
+                  <div className="space-y-1">
+                    <Label htmlFor="proofLabel" className="text-xs">Description de la preuve</Label>
+                    <div className="relative">
+                      <Image className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                      <Input
+                        id="proofLabel"
+                        className="pl-8 h-8 text-xs"
+                        placeholder="Ex: Photo fissure n°3 / Email client du 12/04"
+                        value={proofLabel}
+                        onChange={(e) => setProofLabel(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="proofUrl" className="text-xs">Lien vers le document (optionnel)</Label>
+                    <div className="relative">
+                      <Link className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                      <Input
+                        id="proofUrl"
+                        className="pl-8 h-8 text-xs"
+                        placeholder="https://drive.google.com/..."
+                        value={proofUrl}
+                        onChange={(e) => setProofUrl(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

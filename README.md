@@ -1,73 +1,360 @@
-# Welcome to your Lovable project
+# Chantier Pro - Application de Traçabilité Juridique pour Maîtres d'Œuvre
 
-## Project info
+Application web moderne pour la gestion et la traçabilité juridique des projets de construction, conçue spécifiquement pour les Maîtres d'Œuvre (MOE).
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## 🎯 Vue d'ensemble
 
-## How can I edit this code?
+Chantier Pro permet aux Maîtres d'Œuvre de suivre la traçabilité juridique de leurs projets de construction, d'évaluer les risques et de générer les documents nécessaires pour protéger leur responsabilité professionnelle.
 
-There are several ways of editing your application.
+## ✨ Fonctionnalités principales
 
-**Use Lovable**
+### 🔐 Authentification et sécurité
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+- **Authentification Auth0** : Connexion sécurisée via Auth0 avec support Google OAuth
+- **Gestion des rôles** : Système de rôles et permissions
+- **Sessions persistantes** : Maintien de la session utilisateur
 
-Changes made via Lovable will be committed automatically to this repo.
+### 📊 Tableau de bord MOE
 
-**Use your preferred IDE**
+Vue d'ensemble globale avec indicateurs clés :
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+- **Sécurité Juridique** : Nombre de chantiers à risque et score moyen de l'agence
+- **Délais & Planning** : Suivi des retards de livraison
+- **Volume Géré** : Montant total des marchés HT et pourcentage de TMA (Travaux Modificatifs Additionnels)
+- **Conformité Administrative** : Vérification des documents manquants (assurances, contrats)
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### 🏗️ Gestion de projets
 
-Follow these steps:
+#### Création de projet (Wizard en 6 étapes)
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+1. **Type de projet** : Nouveau projet ou projet en cours
+2. **Identification** : Nom, adresse, type d'opération (maison individuelle, rénovation, petit tertiaire), dates de démarrage et fin contractuelle
+3. **Cadre contractuel** : 
+   - Contrat MOE signé
+   - Missions définies par écrit
+   - Compte-rendu formalisé prévu
+   - Validation écrite requise
+4. **Situation actuelle** :
+   - Pour nouveaux projets : Vérification assurances, DOC déposée, Permis de Construire affiché
+   - Pour projets en cours : Décisions sans validation, travaux démarrés, avenants oraux
+5. **Documentation** : Centralisation des preuves, traçabilité des décisions, documentation des impacts financiers
+6. **Confirmation** : Affichage du score initial et du niveau de risque
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+#### Vue détaillée du projet
 
-# Step 3: Install the necessary dependencies.
-npm i
+- **Score de traçabilité** : Score actuel avec évolution depuis l'initial
+- **Niveau de risque** : Indicateur visuel (Sécurisé / Vigilance / À risque)
+- **Informations projet** : Type, statut, nombre d'intervenants, nombre de rapports
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+### 📝 Journal des décisions
+
+Suivi chronologique de toutes les décisions prises sur le projet :
+
+- **Types de décisions** :
+  - Modification (Client/TMA)
+  - Visa technique / Validation
+  - Devoir de conseil / Alerte
+  - Impact financier / Avenant
+  - Réception / Livraison
+
+- **Informations par décision** :
+  - Description détaillée
+  - Entreprise concernée (optionnel)
+  - Validation écrite (oui/non)
+  - Impact financier et montant
+  - Preuve attachée avec label et URL
+  - Impact sur le score de traçabilité
+
+- **Timeline visuelle** : Affichage chronologique avec indicateurs de risque
+
+### 🏢 Gestion des intervenants
+
+- **Liste des entreprises** : Toutes les entreprises intervenant sur le projet
+- **Informations par entreprise** :
+  - Nom et corps d'état (lot)
+  - Contact (nom, email, téléphone)
+  - Statut assurance (RC Pro + Décennale)
+  - Statut contrat (marché signé)
+  - Montant du marché HT
+- **Ajout d'entreprises** : Formulaire complet pour ajouter de nouveaux intervenants
+
+### 💰 Suivi financier
+
+#### Vue d'ensemble financière
+
+- **Marché Global HT** : Total des marchés incluant les avenants
+- **Facturé à date** : Montant validé avec pourcentage d'avancement
+- **Reste à payer** : Calcul automatique du solde
+
+#### Détail par entreprise
+
+- Tableau récapitulatif avec :
+  - Marché initial + avenants
+  - Montant réalisé validé
+  - Pourcentage d'avancement avec barre de progression
+  - Reste à faire
+
+#### Situations de travaux
+
+- **Saisie de situations** :
+  - Numéro de situation
+  - Date et période concernée
+  - Montant demandé HT et pourcentage cumulé
+  - Montant validé HT et pourcentage cumulé
+  - Montant cumulé précédent
+  - Statut (brouillon, soumis, validé, rejeté, payé)
+  - Retenue de garantie (5% standard)
+  - Commentaires
+
+- **Historique des situations** : Liste complète avec statuts et dates
+- **Génération de certificats de paiement** : Export PDF professionnel avec :
+  - Détail du marché initial et avenants
+  - Décompte de la situation
+  - Calcul de la retenue de garantie
+  - Net à payer HT
+  - Espaces de signature MOE et MO
+
+### 📋 Comptes-rendus de visite
+
+- **Création de rapports** :
+  - Date de visite
+  - Conditions météorologiques (ensoleillé, nuageux, pluie, orage, neige)
+  - Température
+  - Validation jour d'intempérie (décalage automatique du planning)
+  - Liste des entreprises présentes
+  - Observations par lot
+  - Remarques générales
+
+- **Historique des visites** : Liste chronologique avec météo et présences
+- **Export PDF** : Génération de comptes-rendus professionnels avec :
+  - Situation des intervenants
+  - Actes et décisions de la période
+  - Observations détaillées par lot
+  - Remarques générales
+
+### 📌 Gestion des réserves (OPR)
+
+- **Suivi des réserves** :
+  - Description du défaut
+  - Entreprise concernée
+  - Localisation précise
+  - Date de constat
+  - Statut (en cours / levée)
+  - Date de levée
+
+- **Taux de levée** : Calcul automatique du pourcentage de réserves levées
+- **Export PDF** : Liste des réserves avec séparation réserves en cours / levées
+
+### 📅 Suivi du planning
+
+- **Dates clés** :
+  - Date de démarrage (OS)
+  - Date de fin contractuelle
+  - Date de fin estimée réelle
+
+- **Calcul automatique des retards** :
+  - Ajustement pour jours d'intempéries validés
+  - Calcul du retard/avance en jours
+  - Indicateurs visuels (rouge pour retard, vert pour à l'heure)
+
+- **Modification du planning** : Mise à jour facile des dates
+
+### 📄 Export PDF
+
+Génération de documents professionnels :
+
+1. **État de traçabilité** :
+   - Score actuel et évolution
+   - Niveau de risque
+   - Décisions à risque et conformes
+   - Calibration initiale
+   - Informations projet complètes
+
+2. **Certificat de paiement** :
+   - Détail du marché et avenants
+   - Décompte de la situation
+   - Calcul de la retenue de garantie
+   - Net à payer avec espaces de signature
+
+3. **Liste des réserves (OPR)** :
+   - Réserves en cours
+   - Réserves levées
+   - Taux de levée
+   - Espaces de signature
+
+4. **Compte-rendu de visite** :
+   - Situation des intervenants
+   - Décisions de la période
+   - Observations par lot
+   - Remarques générales
+
+### 🎯 Système de scoring
+
+- **Score initial** : Calculé lors de la création du projet basé sur :
+  - Statut du projet (nouveau/en cours)
+  - Type d'opération
+  - Réponses à la calibration (cadre contractuel, démarrage, maturité documentaire)
+
+- **Évolution du score** : Impact dynamique de chaque décision :
+  - Points positifs pour décisions bien documentées
+  - Points négatifs pour décisions à risque
+  - Poids selon le type de décision
+  - Multiplicateur pour impacts financiers
+
+- **Niveaux de risque** :
+  - **Sécurisé** (≥75) : Projet bien documenté, traçabilité suffisante
+  - **Vigilance** (50-74) : Certaines décisions manquent de documentation
+  - **À risque** (<50) : Plusieurs décisions à risque détectées
+
+## 🛠️ Technologies utilisées
+
+- **Frontend** :
+  - React 18 avec TypeScript
+  - Vite (build tool)
+  - React Router (navigation)
+  - TanStack Query (gestion d'état serveur)
+
+- **UI/UX** :
+  - shadcn/ui (composants UI)
+  - Tailwind CSS (styling)
+  - Radix UI (composants accessibles)
+  - Lucide React (icônes)
+
+- **Authentification** :
+  - Auth0 React SDK
+  - Google OAuth
+
+- **Gestion de données** :
+  - LocalStorage (persistance locale)
+  - React Hooks (état local)
+
+- **Génération PDF** :
+  - HTML/CSS vers PDF (via print window)
+
+- **Utilitaires** :
+  - date-fns (manipulation de dates)
+  - Zod (validation de schémas)
+  - React Hook Form (formulaires)
+
+## 🚀 Installation et démarrage
+
+### Prérequis
+
+- Node.js 18+ et npm
+- Compte Auth0 configuré (pour l'authentification)
+
+### Installation
+
+```bash
+# Cloner le repository
+git clone <URL_DU_REPO>
+cd chantier-pro
+
+# Installer les dépendances
+npm install
 ```
 
-**Edit a file directly in GitHub**
+### Configuration
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+Créer un fichier `.env` à la racine :
 
-**Use GitHub Codespaces**
+```env
+VITE_AUTH0_DOMAIN=votre-domaine.auth0.com
+VITE_AUTH0_CLIENT_ID=votre-client-id
+VITE_AUTH0_AUDIENCE=votre-audience
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+### Démarrage
 
-## What technologies are used for this project?
+```bash
+# Mode développement
+npm run dev
 
-This project is built with:
+# Build de production
+npm run build
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+# Prévisualisation du build
+npm run preview
+```
 
-## How can I deploy this project?
+## 📁 Structure du projet
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+```
+chantier-pro/
+├── src/
+│   ├── auth/              # Authentification (AuthProvider, AuthGuard)
+│   ├── components/        # Composants React
+│   │   ├── ui/           # Composants UI shadcn
+│   │   ├── MoeCockpit.tsx
+│   │   ├── ProjectCard.tsx
+│   │   ├── ProjectDetail.tsx
+│   │   ├── ProjectCreationWizard.tsx
+│   │   └── ...
+│   ├── contexts/          # Contextes React
+│   ├── hooks/            # Hooks personnalisés
+│   ├── lib/              # Utilitaires et logique métier
+│   │   ├── projects.ts   # Gestion des projets
+│   │   ├── scoring.ts    # Calcul des scores
+│   │   ├── finance.ts    # Calculs financiers
+│   │   └── pdf.ts        # Génération PDF
+│   ├── pages/            # Pages de l'application
+│   ├── types/            # Types TypeScript
+│   └── main.tsx          # Point d'entrée
+├── public/               # Fichiers statiques
+└── package.json          # Dépendances et scripts
+```
 
-## Can I connect a custom domain to my Lovable project?
+## 🎨 Fonctionnalités avancées
 
-Yes, you can!
+### Calcul automatique des retards
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+Le système ajuste automatiquement la date de fin contractuelle en fonction des jours d'intempéries validés dans les comptes-rendus de visite.
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+### Suivi des avenants
+
+Les décisions de type "Impact financier" sont automatiquement intégrées dans le calcul du marché total de chaque entreprise.
+
+### Détection des décisions problématiques
+
+L'application identifie automatiquement les décisions qui font baisser le score et les met en évidence pour action corrective.
+
+### Validation des situations
+
+Système complet de workflow pour les situations de travaux : brouillon → soumis → validé → payé.
+
+## 📊 Métriques et KPIs
+
+Le tableau de bord MOE calcule automatiquement :
+
+- Nombre de projets à risque
+- Score moyen de l'agence
+- Nombre de projets en retard
+- Volume total géré (HT)
+- Pourcentage moyen de TMA
+- Nombre d'entreprises avec documents manquants
+
+## 🔒 Sécurité et conformité
+
+- Authentification sécurisée via Auth0
+- Données stockées localement (LocalStorage)
+- Validation des données avec Zod
+- Gestion des erreurs et états de chargement
+
+## 📝 Notes importantes
+
+- Les données sont stockées localement dans le navigateur
+- Les PDF sont générés côté client
+- L'authentification nécessite une configuration Auth0
+- Le scoring est basé sur les bonnes pratiques MOE françaises
+
+## 🤝 Contribution
+
+Ce projet est conçu pour les Maîtres d'Œuvre et suit les pratiques de traçabilité juridique en vigueur en France.
+
+## 📄 Licence
+
+[À définir]
+
+---
+
+**Développé pour améliorer la traçabilité juridique des projets de construction**

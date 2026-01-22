@@ -55,6 +55,8 @@ export interface Decision {
   hasFinancialImpact: boolean;
   amount?: number; // Montant de l'avenant/impact HT
   hasProofAttached: boolean;
+  proofLabel?: string; // Ex: "Photo n°12" ou "Email du 12/01"
+  proofUrl?: string; // Lien externe vers le document
   createdAt: Date;
   scoreImpact: number;
 }
@@ -73,10 +75,48 @@ export interface SiteReport {
   date: Date;
   weather: WeatherType;
   temperature?: number; // °C
+  isValidatedBadWeather: boolean; // Si coché, décale le planning contractuel
   presentCompanyIds: string[]; // List of companies present
   generalRemarks: string;
   observations: SiteObservation[]; // Observations par lot
   createdAt: Date;
+}
+
+export interface Snag {
+  id: string;
+  description: string;
+  companyId: string;
+  isCleared: boolean;
+  foundDate: Date;
+  clearedDate?: Date;
+  location?: string; // Ex: "Chambre 1", "Façade Nord"
+}
+
+export type PaymentStatus = 'draft' | 'submitted' | 'validated' | 'rejected' | 'paid';
+
+export interface PaymentApplication {
+  id: string;
+  projectId: string;
+  companyId: string;
+  number: number; // Situation n°1, 2...
+  date: Date;
+  period: Date; // Mois concerné
+  
+  // Amounts
+  claimedAmount: number; // Montant demandé HT
+  claimedPercentage: number; // % demandé cumulé
+  
+  validatedAmount: number; // Montant validé HT
+  validatedPercentage: number; // % validé cumulé
+  
+  previousCumulativeAmount: number; // Montant cumulé précédent
+  
+  status: PaymentStatus;
+  comments?: string;
+  
+  // Retenue de garantie (5% standard in France)
+  hasRetenueGarantie: boolean;
+  retenueAmount?: number;
 }
 
 export interface Project {
@@ -93,6 +133,8 @@ export interface Project {
   companies: Company[];
   decisions: Decision[];
   reports: SiteReport[]; // Comptes-rendus
+  snags: Snag[]; // Liste des réserves (OPR / Réception)
+  payments: PaymentApplication[]; // Situations de travaux
   initialScore: number;
   currentScore: number;
   currentRiskLevel: RiskLevel;
