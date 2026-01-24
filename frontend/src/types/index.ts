@@ -121,12 +121,16 @@ export interface PaymentApplication {
 
 export interface Project {
   id: string;
+  organizationId: string; // NOUVEAU: Organisation propriétaire
+  createdBy: string; // NOUVEAU: User ID du créateur
+  referentMoeId?: string; // NOUVEAU: User ID du MOE référent (optionnel)
   name: string;
   address: string;
   projectType: 'individual' | 'tertiary' | 'renovation';
   status: ProjectStatus;
   calibration: ProjectCalibration;
   createdAt: Date;
+  updatedAt?: Date; // NOUVEAU: Date de dernière modification
   startDate?: Date; // Date réelle ou prévue de démarrage
   contractualEndDate?: Date; // Date de fin prévue au contrat
   estimatedEndDate?: Date; // Date de fin réelle estimée
@@ -138,4 +142,93 @@ export interface Project {
   initialScore: number;
   currentScore: number;
   currentRiskLevel: RiskLevel;
+}
+
+// ===== Types pour la collaboration multi-utilisateurs =====
+
+export type OrganizationRole = 'owner' | 'moe' | 'assistant' | 'read_only';
+export type ProjectRole = 'owner' | 'editor' | 'viewer';
+export type MembershipStatus = 'pending' | 'active' | 'suspended';
+export type ActivityAction = 
+  | 'created' 
+  | 'updated' 
+  | 'deleted' 
+  | 'decision_added' 
+  | 'company_added'
+  | 'report_added'
+  | 'snag_added'
+  | 'payment_added'
+  | 'planning_updated';
+
+export interface Organization {
+  id: string;
+  name: string;
+  slug: string; // Identifiant URL-friendly (unique)
+  description?: string;
+  logoUrl?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  createdBy: string; // User ID du créateur
+  settings: {
+    allowPublicInvites: boolean;
+    defaultRole: OrganizationRole;
+  };
+}
+
+export interface Membership {
+  id: string;
+  organizationId: string;
+  userId: string;
+  role: OrganizationRole;
+  invitedBy?: string; // User ID de l'inviteur
+  invitedAt?: Date;
+  joinedAt: Date;
+  status: MembershipStatus;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ProjectAccess {
+  id: string;
+  projectId: string;
+  userId: string;
+  role: ProjectRole;
+  grantedBy: string; // User ID qui a accordé l'accès
+  grantedAt: Date;
+  createdAt: Date;
+}
+
+export interface ProjectActivity {
+  id: string;
+  projectId: string;
+  userId: string; // Auteur de l'action
+  action: ActivityAction;
+  entityType: string; // 'project' | 'decision' | 'company' | 'report' | 'snag' | 'payment'
+  entityId?: string; // ID de l'entité concernée
+  description: string; // Description lisible de l'action
+  metadata?: Record<string, any>; // Données additionnelles
+  createdAt: Date;
+}
+
+// Types pour les réponses API
+export interface OrganizationWithStats extends Organization {
+  memberCount: number;
+  projectCount: number;
+  role: OrganizationRole; // Rôle de l'utilisateur connecté dans cette organisation
+}
+
+export interface MembershipWithUser extends Membership {
+  user: {
+    id: string;
+    email: string;
+    name: string;
+    avatar?: string;
+  };
+}
+
+export interface ProjectWithAccess extends Project {
+  access?: {
+    role: ProjectRole;
+    grantedAt?: Date;
+  };
 }

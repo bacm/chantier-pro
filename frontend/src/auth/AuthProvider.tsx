@@ -1,5 +1,6 @@
 import { Auth0Provider, useAuth0 } from '@auth0/auth0-react';
 import { ReactNode, createContext, useContext, useEffect, useState } from 'react';
+import Cookies from 'js-cookie';
 
 const domain = import.meta.env.VITE_AUTH0_DOMAIN;
 const clientId = import.meta.env.VITE_AUTH0_CLIENT_ID;
@@ -12,12 +13,13 @@ interface AuthContextProps {
   roles: string[];
   loginWithRedirect: () => void;
   logout: () => void;
+  getAccessToken: () => Promise<string | undefined>;
 }
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
 
 const AuthContextProvider = ({children}: {children: ReactNode}) => {
-  const { user, isAuthenticated, isLoading, loginWithRedirect, logout } = useAuth0();
+  const { user, isAuthenticated, isLoading, loginWithRedirect, logout, getAccessTokenSilently } = useAuth0();
   const [roles, setRoles] = useState<string[]>([]);
 
   useEffect(() => {
@@ -27,7 +29,39 @@ const AuthContextProvider = ({children}: {children: ReactNode}) => {
     }
   }, [user]);
 
-  const value = { user, isAuthenticated, isLoading, roles, loginWithRedirect, logout };
+  // Store token in cookie when authenticated
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      getAccessTokenSilently()
+        .then(token => {
+          if (token) {
+            // Store token in cookie (expires in 24h)
+            Cookies.set('auth_token', token, {
+              expires: 1,
+              sameSite: 'strict',
+              secure: window.location.protocol === 'https:',
+            });
+          }
+        })
+        .catch(err => {
+          console.error('Failed to get access token:', err);
+        });
+    } else if (!isAuthenticated) {
+      // Remove token cookie when logged out
+      Cookies.remove('auth_token');
+    }
+  }, [isAuthenticated, user, getAccessTokenSilently]);
+
+  const getAccessToken = async () => {
+    try {
+      return await getAccessTokenSilently();
+    } catch (error) {
+      console.error('Failed to get access token:', error);
+      return undefined;
+    }
+  };
+
+  const value = { user, isAuthenticated, isLoading, roles, loginWithRedirect, logout, getAccessToken };
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 

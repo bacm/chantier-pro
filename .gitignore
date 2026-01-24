@@ -7,10 +7,25 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies
 node_modules
+frontend/node_modules
+server/node_modules
+
+# Build outputs
 dist
 dist-ssr
-*.local
+frontend/dist
+server/dist
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+frontend/.env
+frontend/.env.local
+server/.env
+server/.env.local
 
 # Editor directories and files
 .vscode/*
@@ -29,3 +44,8 @@ prd.json
 progress.txt
 archive/
 .last-project
+
+# Package manager locks (keep one, comment others)
+package-lock.json
+# yarn.lock
+# pnpm-lock.yaml

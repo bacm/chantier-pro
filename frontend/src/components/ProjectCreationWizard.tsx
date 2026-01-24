@@ -11,7 +11,7 @@ import { getScoreRiskLevel, getRiskLevelLabel, getRiskLevelColor } from '@/lib/s
 import { cn } from '@/lib/utils';
 
 interface ProjectCreationWizardProps {
-  onComplete: (project: Project) => void;
+  onComplete: (project: Partial<Project>) => void;
   onCancel: () => void;
 }
 
@@ -125,7 +125,12 @@ export const ProjectCreationWizard = ({ onComplete, onCancel }: ProjectCreationW
         startDate ? new Date(startDate) : undefined,
         contractualEndDate ? new Date(contractualEndDate) : undefined
       );
-      onComplete(project);
+      // Return partial project (backend will add id, organizationId, etc.)
+      const { id, createdAt, ...projectData } = project;
+      onComplete({
+        ...projectData,
+        createdAt: new Date(),
+      });
     }
   };
 
