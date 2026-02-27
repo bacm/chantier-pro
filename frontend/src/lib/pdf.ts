@@ -3,6 +3,15 @@ import { formatDate, formatDateTime, getProjectTypeLabel, getProjectStatusLabel 
 import { getRiskLevelLabel, DECISION_TYPE_LABELS, getProblematicDecisions, getPositiveDecisions } from './scoring';
 import { getCompanyContractTotal, calculatePaymentDetails } from './finance';
 
+const escapeHtml = (str: string | undefined | null): string => {
+  if (str === undefined || str === null) {
+    return '';
+  }
+  const div = document.createElement('div');
+  div.appendChild(document.createTextNode(str));
+  return div.innerHTML;
+};
+
 export const generatePaymentCertificatePDF = (project: Project, payment: PaymentApplication) => {
   const company = project.companies.find(c => c.id === payment.companyId);
   if (!company) return;
@@ -118,8 +127,8 @@ export const generatePaymentCertificatePDF = (project: Project, payment: Payment
       <div class="header">
         <div>
           <div style="font-size: 10pt; color: #666; margin-bottom: 5px;">PROJET</div>
-          <div class="project-info">${project.name}</div>
-          <div>${project.address}</div>
+          <div class="project-info">${escapeHtml(project.name)}</div>
+          <div>${escapeHtml(project.address)}</div>
         </div>
         <div class="title-box">
           <div class="certif-title">Certificat de Paiement N°${payment.number}</div>
@@ -129,8 +138,8 @@ export const generatePaymentCertificatePDF = (project: Project, payment: Payment
       </div>
 
       <div class="company-box">
-        <div style="font-size: 9pt; color: #666; text-transform: uppercase; margin-bottom: 5px;">Titulaire du lot ${company.trade}</div>
-        <div style="font-size: 12pt; font-weight: bold;">${company.name}</div>
+        <div style="font-size: 9pt; color: #666; text-transform: uppercase; margin-bottom: 5px;">Titulaire du lot ${escapeHtml(company.trade)}</div>
+        <div style="font-size: 12pt; font-weight: bold;">${escapeHtml(company.name)}</div>
         ${company.hasContract ? '<div style="color: #059669; font-size: 9pt; margin-top: 5px;">✓ Marché signé</div>' : ''}
       </div>
 
@@ -302,7 +311,7 @@ export const generateAcceptancePDF = (project: Project) => {
       <div class="header">
         <div>
           <h1 style="font-size: 18pt; color: #1a1a2e;">LISTE DES RÉSERVES (OPR)</h1>
-          <div style="font-size: 12pt; font-weight: bold; margin-top: 5px;">${project.name}</div>
+          <div style="font-size: 12pt; font-weight: bold; margin-top: 5px;">${escapeHtml(project.name)}</div>
         </div>
         <div style="text-align: right;">
           <div>Édité le ${formatDate(new Date())}</div>
@@ -327,9 +336,9 @@ export const generateAcceptancePDF = (project: Project) => {
             <tbody>
               ${openSnags.map(s => `
                 <tr>
-                  <td>${project.companies.find(c => c.id === s.companyId)?.trade || '-'}</td>
-                  <td>${s.location || '-'}</td>
-                  <td>${s.description}</td>
+                  <td>${escapeHtml(project.companies.find(c => c.id === s.companyId)?.trade || '-')}</td>
+                  <td>${escapeHtml(s.location || '-')}</td>
+                  <td>${escapeHtml(s.description)}</td>
                   <td>${formatDate(s.foundDate)}</td>
                 </tr>
               `).join('')}
@@ -352,8 +361,8 @@ export const generateAcceptancePDF = (project: Project) => {
             <tbody>
               ${clearedSnags.map(s => `
                 <tr>
-                  <td>${project.companies.find(c => c.id === s.companyId)?.trade || '-'}</td>
-                  <td>${s.description}</td>
+                  <td>${escapeHtml(project.companies.find(c => c.id === s.companyId)?.trade || '-')}</td>
+                  <td>${escapeHtml(s.description)}</td>
                   <td class="status-cleared">${s.clearedDate ? formatDate(s.clearedDate) : 'Oui'}</td>
                 </tr>
               `).join('')}
@@ -564,13 +573,13 @@ export const generateProjectStatusPDF = (project: Project) => {
     <body>
       <div class="header">
         <h1>État de traçabilité</h1>
-        <div class="subtitle">${project.name}</div>
+        <div class="subtitle">${escapeHtml(project.name)}</div>
       </div>
 
       <div class="meta">
         <div class="meta-item">
           <div class="meta-label">Adresse</div>
-          <div class="meta-value">${project.address}</div>
+          <div class="meta-value">${escapeHtml(project.address)}</div>
         </div>
         <div class="meta-item">
           <div class="meta-label">Type</div>
@@ -600,7 +609,7 @@ export const generateProjectStatusPDF = (project: Project) => {
                 <span class="decision-type">${DECISION_TYPE_LABELS[d.type]}</span>
                 <span class="decision-impact negative">${d.scoreImpact}</span>
               </div>
-              <div class="decision-desc">${d.description}</div>
+              <div class="decision-desc">${escapeHtml(d.description)}</div>
               <div class="decision-meta">
                 ${formatDateTime(d.createdAt)} • 
                 Validation écrite: ${d.hasWrittenValidation ? 'Oui' : 'Non'} • 
@@ -620,7 +629,7 @@ export const generateProjectStatusPDF = (project: Project) => {
                 <span class="decision-type">${DECISION_TYPE_LABELS[d.type]}</span>
                 <span class="decision-impact positive">+${d.scoreImpact}</span>
               </div>
-              <div class="decision-desc">${d.description}</div>
+              <div class="decision-desc">${escapeHtml(d.description)}</div>
               <div class="decision-meta">${formatDateTime(d.createdAt)}</div>
             </div>
           `).join('')}
@@ -825,8 +834,8 @@ export const generateSiteReportPDF = (project: Project, report: SiteReport) => {
       <div class="header">
         <div>
           <h1>Compte-Rendu N°${project.reports.length - project.reports.indexOf(report)}</h1>
-          <div style="font-size: 14pt; font-weight: bold;">${project.name}</div>
-          <div style="color: #666;">${project.address}</div>
+          <div style="font-size: 14pt; font-weight: bold;">${escapeHtml(project.name)}</div>
+          <div style="color: #666;">${escapeHtml(project.address)}</div>
         </div>
         <div style="text-align: right;">
           <div style="font-size: 12pt; font-weight: bold;">Visite du ${formatDate(report.date)}</div>
@@ -850,8 +859,8 @@ export const generateSiteReportPDF = (project: Project, report: SiteReport) => {
           <tbody>
             ${project.companies.map(c => `
               <tr>
-                <td>${c.trade}</td>
-                <td>${c.name}</td>
+                <td>${escapeHtml(c.trade)}</td>
+                <td>${escapeHtml(c.name)}</td>
                 <td class="${report.presentCompanyIds.includes(c.id) ? 'company-present' : ''}">
                   ${report.presentCompanyIds.includes(c.id) ? 'PRÉSENT' : 'Absent'}
                 </td>
@@ -867,8 +876,8 @@ export const generateSiteReportPDF = (project: Project, report: SiteReport) => {
           ${decisionsSinceLastReport.map(d => `
             <div class="decision-box">
               <strong>${DECISION_TYPE_LABELS[d.type]}</strong> - ${formatDate(d.createdAt)}<br/>
-              ${d.description}
-              ${d.companyId ? `<br/><small>Concerne : ${project.companies.find(c => c.id === d.companyId)?.name}</small>` : ''}
+              ${escapeHtml(d.description)}
+              ${d.companyId ? `<br/><small>Concerne : ${escapeHtml(project.companies.find(c => c.id === d.companyId)?.name)}</small>` : ''}
             </div>
           `).join('')}
         </div>
@@ -881,9 +890,9 @@ export const generateSiteReportPDF = (project: Project, report: SiteReport) => {
           if (companyObs.length === 0) return '';
           return `
             <div style="margin-bottom: 15px;">
-              <h3 style="font-size: 10pt; color: #1a1a2e; border-bottom: 1px solid #eee; margin-bottom: 5px;">${c.trade} - ${c.name}</h3>
+              <h3 style="font-size: 10pt; color: #1a1a2e; border-bottom: 1px solid #eee; margin-bottom: 5px;">${escapeHtml(c.trade)} - ${escapeHtml(c.name)}</h3>
               ${companyObs.map(o => `
-                <div class="observation-item">${o.text}</div>
+                <div class="observation-item">${escapeHtml(o.text)}</div>
               `).join('')}
             </div>
           `;
@@ -893,7 +902,7 @@ export const generateSiteReportPDF = (project: Project, report: SiteReport) => {
           <div style="margin-bottom: 15px;">
             <h3 style="font-size: 10pt; color: #1a1a2e; border-bottom: 1px solid #eee; margin-bottom: 5px;">Général</h3>
             ${report.observations.filter(o => !o.companyId).map(o => `
-              <div class="observation-item">${o.text}</div>
+              <div class="observation-item">${escapeHtml(o.text)}</div>
             `).join('')}
           </div>
         ` : ''}
@@ -902,7 +911,7 @@ export const generateSiteReportPDF = (project: Project, report: SiteReport) => {
       <div class="section">
         <div class="section-title">4. Remarques générales & Avancement</div>
         <div style="background: #f9f9f9; padding: 15px; border-radius: 4px; white-space: pre-wrap;">
-          ${report.generalRemarks || 'Néant.'}
+          ${escapeHtml(report.generalRemarks || 'Néant.')}
         </div>
       </div>
 

@@ -7,8 +7,11 @@ async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
+  const token = localStorage.getItem('jwt_token'); // Get token from localStorage
+
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
+    ...(token && !options.headers?.Authorization && { Authorization: `Bearer ${token}` }), // Add token if present and not already set
     ...options.headers,
   };
 
@@ -27,23 +30,36 @@ async function apiRequest<T>(
 
 // Auth API
 export const authApi = {
-  getMe: () => apiRequest<{ user: any; organizations: any[] }>('/auth/me'),
+  getMe: () =>
+    apiRequest<{ user: User; organizations: OrganizationWithStats[] }>('/auth/me'),
+
+  login: (credentials: { email: string; password: string }) =>
+    apiRequest<{ token: string; user: User }>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(credentials),
+    }),
+
+  register: (userData: { email: string; password: string; name: string }) =>
+    apiRequest<{ token: string; user: User }>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(userData),
+    }),
 };
 
 // Organizations API
 export const organizationsApi = {
-  list: () => apiRequest<{ organizations: any[] }>('/organizations'),
+  list: () => apiRequest<{ organizations: OrganizationWithStats[] }>('/organizations'),
 
-  get: (id: string) => apiRequest<any>(`/organizations/${id}`),
+  get: (id: string) => apiRequest<OrganizationWithStats>(`/organizations/${id}`),
 
   create: (data: { name: string; description?: string; logoUrl?: string }) =>
-    apiRequest<any>('/organizations', {
+    apiRequest<Organization>('/organizations', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
 
-  update: (id: string, data: Partial<any>) =>
-    apiRequest<any>(`/organizations/${id}`, {
+  update: (id: string, data: Partial<Organization>) =>
+    apiRequest<Organization>(`/organizations/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(data),
     }),
@@ -54,16 +70,16 @@ export const organizationsApi = {
     }),
 
   getMembers: (id: string) =>
-    apiRequest<{ members: any[] }>(`/organizations/${id}/members`),
+    apiRequest<{ members: MembershipWithUser[] }>(`/organizations/${id}/members`),
 
-  inviteMember: (id: string, data: { email: string; role: string }) =>
-    apiRequest<any>(`/organizations/${id}/members/invite`, {
+  inviteMember: (id: string, data: { email: string; role: OrganizationRole }) =>
+    apiRequest<Membership>(`/organizations/${id}/members/invite`, {
       method: 'POST',
       body: JSON.stringify(data),
     }),
 
-  updateMember: (orgId: string, memberId: string, data: { role: string }) =>
-    apiRequest<any>(`/organizations/${orgId}/members/${memberId}`, {
+  updateMember: (orgId: string, memberId: string, data: { role: OrganizationRole }) =>
+    apiRequest<Membership>(`/organizations/${orgId}/members/${memberId}`, {
       method: 'PATCH',
       body: JSON.stringify(data),
     }),
@@ -94,21 +110,21 @@ export const projectsApi = {
     if (filters?.limit) params.append('limit', filters.limit.toString());
 
     const query = params.toString();
-    return apiRequest<{ projects: any[]; pagination: any }>(
+    return apiRequest<{ projects: ProjectWithAccess[]; pagination: Pagination }>(
       `/projects/organization/${orgId}${query ? `?${query}` : ''}`
     );
   },
 
-  get: (id: string) => apiRequest<any>(`/projects/${id}`),
+  get: (id: string) => apiRequest<ProjectWithAccess>(`/projects/${id}`),
 
-  create: (orgId: string, data: any) =>
-    apiRequest<any>(`/projects/organization/${orgId}`, {
+  create: (orgId: string, data: CreateProjectPayload) =>
+    apiRequest<Project>(`/projects/organization/${orgId}`, {
       method: 'POST',
       body: JSON.stringify(data),
     }),
 
-  update: (id: string, data: Partial<any>) =>
-    apiRequest<any>(`/projects/${id}`, {
+  update: (id: string, data: Partial<Project>) =>
+    apiRequest<Project>(`/projects/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(data),
     }),
@@ -119,10 +135,10 @@ export const projectsApi = {
     }),
 
   getAccess: (id: string) =>
-    apiRequest<{ accesses: any[] }>(`/projects/${id}/access`),
+    apiRequest<{ accesses: ProjectAccess[] }>(`/projects/${id}/access`),
 
-  addAccess: (id: string, data: { userId: string; role: string }) =>
-    apiRequest<any>(`/projects/${id}/access`, {
+  addAccess: (id: string, data: { userId: string; role: ProjectRole }) =>
+    apiRequest<ProjectAccess>(`/projects/${id}/access`, {
       method: 'POST',
       body: JSON.stringify(data),
     }),
@@ -133,13 +149,13 @@ export const projectsApi = {
     }),
 
   getActivities: (id: string) =>
-    apiRequest<{ activities: any[] }>(`/projects/${id}/activities`),
+    apiRequest<{ activities: ProjectActivity[] }>(`/projects/${id}/activities`),
 };
 
 // Dashboard API
 export const dashboardApi = {
   getOrganizationDashboard: (orgId: string) =>
-    apiRequest<any>(`/dashboard/organization/${orgId}`),
+    apiRequest<DashboardData>(`/dashboard/organization/${orgId}`),
 };
 
 // Exports API

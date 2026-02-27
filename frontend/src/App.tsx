@@ -4,9 +4,11 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./auth/AuthProvider";
+import { AuthGuard } from "./auth/AuthGuard"; // Import AuthGuard
 import { OrganizationProvider } from "./contexts/OrganizationContext";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
+import AuthPage from "./pages/AuthPage"; // Import AuthPage
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -26,7 +28,15 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <Routes>
-              <Route path="/" element={<Index />} />
+              <Route
+                path="/"
+                element={
+                  <AuthGuard>
+                    <Index />
+                  </AuthGuard>
+                }
+              />
+              <Route path="/auth" element={<AuthPage />} /> {/* New Auth Page Route */}
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

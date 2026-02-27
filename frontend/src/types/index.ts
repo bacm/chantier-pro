@@ -232,3 +232,34 @@ export interface ProjectWithAccess extends Project {
     grantedAt?: Date;
   };
 }
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  avatar?: string;
+}
+
+export interface Pagination {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface CreateProjectPayload {
+  name: string;
+  address: string;
+  projectType: 'individual' | 'tertiary' | 'renovation';
+  startDate?: Date;
+  contractualEndDate?: Date;
+  estimatedEndDate?: Date;
+  referentMoeId?: string;
+}
+
+export interface DashboardData {
+  totalProjects: number;
+  ongoingProjects: number;
+  completedProjects: number;
+  riskyProjects: number;
+}
