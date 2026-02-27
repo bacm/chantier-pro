@@ -2,39 +2,40 @@
 
 Application web moderne pour la gestion et la traçabilité juridique des projets de construction, conçue spécifiquement pour les Maîtres d'Œuvre (MOE).
 
-## 🎯 Vue d'ensemble
+## Vue d'ensemble
 
 Chantier Pro permet aux Maîtres d'Œuvre de suivre la traçabilité juridique de leurs projets de construction, d'évaluer les risques et de générer les documents nécessaires pour protéger leur responsabilité professionnelle.
 
-## 📁 Structure du projet
-
-Ce projet est organisé en deux parties principales :
+## Structure du projet
 
 ```
 chantier-pro/
 ├── frontend/          # Application React/TypeScript
-│   ├── src/          # Code source du frontend
-│   ├── public/       # Fichiers statiques
-│   ├── package.json  # Dépendances frontend
-│   └── README.md     # Documentation frontend
+│   ├── src/
+│   │   ├── auth/          # Contexte d'authentification
+│   │   ├── components/    # Composants React
+│   │   ├── contexts/      # Contextes (Organisation)
+│   │   ├── hooks/         # Hooks React personnalisés
+│   │   ├── lib/           # Client API, logique métier, PDF
+│   │   ├── pages/         # Pages
+│   │   └── types/         # Interfaces TypeScript
+│   └── package.json
 │
-├── server/           # API REST Node.js/Express
-│   ├── src/         # Code source du backend
-│   ├── package.json # Dépendances backend
-│   └── README.md    # Documentation backend
+├── server/            # API REST Node.js/Express
+│   ├── src/
+│   │   ├── db/            # Base de données en mémoire
+│   │   ├── middleware/    # Middleware d'authentification
+│   │   └── routes/        # Endpoints API
+│   └── package.json
 │
-├── ROADMAP.md        # Roadmap produit
-├── SPECS_COLLABORATION.md  # Spécifications collaboration
-├── IMPLEMENTATION.md # Détails d'implémentation
-└── README.md         # Ce fichier
+└── docs/              # Documentation
 ```
 
-## 🚀 Démarrage rapide
+## Démarrage rapide
 
 ### Prérequis
 
 - Node.js 18+ et npm
-- Compte Auth0 configuré (pour l'authentification)
 
 ### Installation
 
@@ -43,19 +44,7 @@ chantier-pro/
 ```bash
 cd server
 npm install
-```
-
-Créer un fichier `server/.env` :
-```env
-PORT=3001
-FRONTEND_URL=http://localhost:8080
-AUTH0_DOMAIN=your-domain.auth0.com
-AUTH0_AUDIENCE=your-audience
-NODE_ENV=development
-```
-
-Démarrer le backend :
-```bash
+cp .env.example .env
 npm run dev
 ```
 
@@ -66,39 +55,22 @@ Le serveur démarre sur le port **3001**.
 ```bash
 cd frontend
 npm install
-```
-
-Créer un fichier `frontend/.env` :
-```env
-VITE_AUTH0_DOMAIN=your-domain.auth0.com
-VITE_AUTH0_CLIENT_ID=your-client-id
-VITE_AUTH0_AUDIENCE=your-audience
-VITE_API_URL=http://localhost:3001/api
-```
-
-Démarrer le frontend :
-```bash
+cp .env.example .env
 npm run dev
 ```
 
 L'application démarre sur le port **8080**.
 
-## ✨ Fonctionnalités principales
+## Fonctionnalités principales
 
-### 🔐 Authentification et sécurité
-
-- **Authentification Auth0** : Connexion sécurisée via Auth0 avec support Google OAuth
-- **Gestion des rôles** : Système de rôles et permissions (owner, moe, assistant, read_only)
-- **Sessions persistantes** : Maintien de la session utilisateur
-
-### 👥 Collaboration multi-utilisateurs
+### Collaboration multi-utilisateurs
 
 - **Organisations** : Création et gestion d'organisations (agences)
-- **Membres** : Invitation et gestion des membres avec rôles
+- **Membres** : Invitation et gestion des membres avec rôles (owner, moe, assistant, read_only)
 - **Partage de projets** : Projets partagés au sein d'une organisation
 - **Tableau de bord agence** : Vue synthétique multi-projets avec KPIs
 
-### 📊 Tableau de bord MOE
+### Tableau de bord MOE
 
 Vue d'ensemble globale avec indicateurs clés :
 
@@ -107,7 +79,7 @@ Vue d'ensemble globale avec indicateurs clés :
 - **Volume Géré** : Montant total des marchés HT et pourcentage de TMA
 - **Conformité Administrative** : Vérification des documents manquants (assurances, contrats)
 
-### 🏗️ Gestion de projets
+### Gestion de projets
 
 #### Création de projet (Wizard en 6 étapes)
 
@@ -122,111 +94,75 @@ Vue d'ensemble globale avec indicateurs clés :
 
 - **Score de traçabilité** : Score actuel avec évolution
 - **Niveau de risque** : Indicateur visuel (Sécurisé / Vigilance / À risque)
-- **Journal des décisions** : Timeline chronologique
+- **Journal des décisions** : Timeline chronologique (6 types : modifications, validations, conseils, impacts financiers, réceptions)
 - **Gestion des entreprises** : Liste des intervenants
-- **Suivi financier** : Marchés, situations, certificats de paiement
+- **Suivi financier** : Marchés, situations, certificats de paiement, retenue de garantie
 - **Comptes-rendus de visite** : Rapports avec météo et observations
-- **Gestion des réserves** : Suivi des OPR (Observations et Réserves)
+- **Gestion des réserves** : Suivi des OPR
 - **Suivi du planning** : Dates clés et calcul des retards
 
-### 📄 Export de données
+### Export de données
 
 - **Export CSV** : Liste des projets, entreprises, réserves
 - **Génération PDF** : État de traçabilité, certificats de paiement, comptes-rendus
 
-## 🛠️ Technologies utilisées
+## Technologies
 
 ### Frontend
 - React 18 + TypeScript
 - Vite (build tool)
 - TanStack Query (gestion d'état serveur)
 - shadcn/ui + Tailwind CSS (UI)
-- Auth0 (authentification)
+- React Hook Form + Zod (formulaires et validation)
+- Recharts (graphiques)
 
 ### Backend
 - Node.js + Express
-- JWT (authentification)
-- Stockage en mémoire (MVP - à migrer vers PostgreSQL)
+- Stockage en mémoire (MVP)
 
-## 📚 Documentation
-
-- **[Frontend README](frontend/README.md)** - Documentation complète du frontend
-- **[Backend README](server/README.md)** - Documentation complète du backend
-- **[ROADMAP.md](ROADMAP.md)** - Roadmap produit et évolutions prévues
-- **[SPECS_COLLABORATION.md](SPECS_COLLABORATION.md)** - Spécifications détaillées de la collaboration
-- **[IMPLEMENTATION.md](IMPLEMENTATION.md)** - Détails de l'implémentation
-
-## 🔧 Configuration
-
-### Variables d'environnement
+## Variables d'environnement
 
 #### Backend (`server/.env`)
 ```env
 PORT=3001
 FRONTEND_URL=http://localhost:8080
-AUTH0_DOMAIN=your-domain.auth0.com
-AUTH0_AUDIENCE=your-audience
 NODE_ENV=development
 ```
 
 #### Frontend (`frontend/.env`)
 ```env
-VITE_AUTH0_DOMAIN=your-domain.auth0.com
-VITE_AUTH0_CLIENT_ID=your-client-id
-VITE_AUTH0_AUDIENCE=your-audience
 VITE_API_URL=http://localhost:3001/api
 ```
 
-## 🧪 Développement
-
-### Scripts disponibles
+## Scripts disponibles
 
 #### Backend
 ```bash
 cd server
-npm run dev    # Mode développement
+npm run dev    # Mode développement (avec hot reload)
 npm start      # Mode production
 ```
 
 #### Frontend
 ```bash
 cd frontend
-npm run dev    # Mode développement
-npm run build  # Build de production
-npm run lint   # Linter le code
+npm run dev          # Mode développement
+npm run build        # Build de production
+npm run lint         # Linter le code
+npm test             # Lancer les tests (run unique)
+npm run test:watch   # Lancer les tests en mode watch
 ```
 
-## 🚨 Notes importantes
+## Notes importantes
 
 ### Base de données
 
-⚠️ **Le backend utilise actuellement un stockage en mémoire (Map JavaScript).**
+Le backend utilise actuellement un stockage en mémoire (Map JavaScript).
 
-- ✅ Parfait pour le développement et les tests
-- ❌ Les données sont **perdues au redémarrage du serveur**
-- 🔄 Pour la production, migrer vers PostgreSQL ou MongoDB
+- Parfait pour le développement et les tests
+- Les données sont **perdues au redémarrage du serveur**
+- Pour la production, migrer vers PostgreSQL
 
-### Authentification
+## Licence
 
-L'authentification utilise Auth0. En développement, le backend accepte directement les tokens Google OAuth. En production, configurer Auth0 correctement.
-
-## 🔄 Migration des données
-
-Un script de migration est disponible pour migrer les projets depuis LocalStorage vers le backend :
-
-```typescript
-import { migrateProjectsToBackend } from '@/lib/migration';
-await migrateProjectsToBackend(organizationId, userId);
-```
-
-## 📝 Contribution
-
-Ce projet est conçu pour les Maîtres d'Œuvre et suit les pratiques de traçabilité juridique en vigueur en France.
-
-## 📄 Licence
-
-[À définir]
-
----
-
-**Développé pour améliorer la traçabilité juridique des projets de construction**
+[A définir]

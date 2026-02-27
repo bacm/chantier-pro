@@ -1,42 +1,29 @@
 import express from 'express';
 import { db } from '../db/memory.js';
-import jwt from 'jsonwebtoken';
 
 const router = express.Router();
+
+const DEV_USER = {
+  id: 'dev-user-1',
+  email: 'dev@chantier-pro.fr',
+  name: 'Utilisateur Dev',
+  avatar: undefined,
+};
 
 // Get current user info
 router.get('/me', async (req, res) => {
   try {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-    
-    if (!token) {
-      return res.status(401).json({ error: 'No token provided' });
-    }
-    
-    const decoded = jwt.decode(token);
-    if (!decoded) {
-      return res.status(401).json({ error: 'Invalid token' });
-    }
-    
-    let user = db.getUser(decoded.sub);
-    
+    let user = db.getUser(DEV_USER.id);
+
     // Create user if doesn't exist
     if (!user) {
-      user = db.createUser({
-        id: decoded.sub,
-        email: decoded.email,
-        name: decoded.name,
-        avatar: decoded.picture,
-      });
+      user = db.createUser(DEV_USER);
     } else {
-      // Update last login
-      db.updateUser(decoded.sub, { lastLoginAt: new Date() });
+      db.updateUser(DEV_USER.id, { lastLoginAt: new Date() });
     }
-    
-    // Get user organizations
-    const organizations = db.getUserOrganizations(decoded.sub);
-    
+
+    const organizations = db.getUserOrganizations(DEV_USER.id);
+
     res.json({
       user: {
         id: user.id,

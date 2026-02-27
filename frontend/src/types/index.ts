@@ -121,9 +121,9 @@ export interface PaymentApplication {
 
 export interface Project {
   id: string;
-  organizationId: string; // NOUVEAU: Organisation propriétaire
-  createdBy: string; // NOUVEAU: User ID du créateur
-  referentMoeId?: string; // NOUVEAU: User ID du MOE référent (optionnel)
+  organizationId: string;
+  createdBy: string;
+  referentMoeId?: string;
   name: string;
   address: string;
   projectType: 'individual' | 'tertiary' | 'renovation';
