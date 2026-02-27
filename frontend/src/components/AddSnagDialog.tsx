@@ -19,17 +19,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Snag, Company } from '@/types';
+import { Company } from '@/types';
 import { createSnag } from '@/lib/projects';
+import { useProjectOperations } from '@/hooks/useProjectOperations';
+import { useCurrentProject } from '@/contexts/ProjectContext';
 
 interface AddSnagDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSnagAdded: (snag: Snag) => void;
   companies: Company[];
 }
 
-export const AddSnagDialog = ({ open, onOpenChange, onSnagAdded, companies }: AddSnagDialogProps) => {
+export const AddSnagDialog = ({ open, onOpenChange, companies }: AddSnagDialogProps) => {
+  const { projectId } = useCurrentProject();
+  const { addSnag } = useProjectOperations(projectId);
   const [description, setDescription] = useState('');
   const [companyId, setCompanyId] = useState<string>('');
   const [location, setLocation] = useState('');
@@ -39,7 +42,7 @@ export const AddSnagDialog = ({ open, onOpenChange, onSnagAdded, companies }: Ad
     if (!description.trim() || !companyId) return;
 
     const snag = createSnag(description.trim(), companyId, location.trim() || undefined);
-    onSnagAdded(snag);
+    addSnag(snag);
 
     // Reset form
     setDescription('');

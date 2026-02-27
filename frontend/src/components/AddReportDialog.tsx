@@ -20,8 +20,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { SiteReport, WeatherType, Company, SiteObservation } from '@/types';
+import { WeatherType, Company, SiteObservation } from '@/types';
 import { createSiteReport } from '@/lib/projects';
+import { useProjectOperations } from '@/hooks/useProjectOperations';
+import { useCurrentProject } from '@/contexts/ProjectContext';
 
 // Standard observations library
 const OBSERVATION_PRESETS = [
@@ -38,7 +40,6 @@ const OBSERVATION_PRESETS = [
 interface AddReportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onReportAdded: (report: SiteReport) => void;
   companies: Company[];
 }
 
@@ -50,7 +51,9 @@ const WEATHER_OPTIONS: { value: WeatherType; label: string; icon: any }[] = [
   { value: 'snow', label: 'Neige', icon: Snowflake },
 ];
 
-export const AddReportDialog = ({ open, onOpenChange, onReportAdded, companies }: AddReportDialogProps) => {
+export const AddReportDialog = ({ open, onOpenChange, companies }: AddReportDialogProps) => {
+  const { projectId } = useCurrentProject();
+  const { addReport } = useProjectOperations(projectId);
   const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [weather, setWeather] = useState<WeatherType>('sunny');
   const [temperature, setTemperature] = useState<string>('');
@@ -101,7 +104,7 @@ export const AddReportDialog = ({ open, onOpenChange, onReportAdded, companies }
       isValidatedBadWeather
     );
     
-    onReportAdded(report);
+    addReport(report);
 
     // Reset form
     setDate(new Date().toISOString().split('T')[0]);

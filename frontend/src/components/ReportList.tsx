@@ -1,5 +1,5 @@
 import { SiteReport, Company, WeatherType, Project } from '@/types';
-import { formatDate } from '@/lib/projects';
+import { formatDate } from '@/lib/utils';
 import { generateSiteReportPDF } from '@/lib/pdf';
 import { Sun, Cloud, CloudRain, CloudLightning, Snowflake, Calendar as CalendarIcon, Users, Download, ListChecks, Wind } from 'lucide-react';
 import { Button } from '@/components/ui/button';

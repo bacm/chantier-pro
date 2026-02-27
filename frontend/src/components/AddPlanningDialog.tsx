@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calendar as CalendarIcon, Save } from 'lucide-react';
+import { Save } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -12,15 +12,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Project } from '@/types';
+import { useProjectOperations } from '@/hooks/useProjectOperations';
+import { useCurrentProject } from '@/contexts/ProjectContext';
 
 interface AddPlanningDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onPlanningUpdated: (startDate?: Date, contractualEndDate?: Date, estimatedEndDate?: Date) => void;
   project: Project;
 }
 
-export const AddPlanningDialog = ({ open, onOpenChange, onPlanningUpdated, project }: AddPlanningDialogProps) => {
+export const AddPlanningDialog = ({ open, onOpenChange, project }: AddPlanningDialogProps) => {
+  const { projectId } = useCurrentProject();
+  const { updateProjectPlanning } = useProjectOperations(projectId);
   const [startDate, setStartDate] = useState<string>('');
   const [contractualEndDate, setContractualEndDate] = useState<string>('');
   const [estimatedEndDate, setEstimatedEndDate] = useState<string>('');
@@ -36,7 +39,7 @@ export const AddPlanningDialog = ({ open, onOpenChange, onPlanningUpdated, proje
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    onPlanningUpdated(
+    updateProjectPlanning(
       startDate ? new Date(startDate) : undefined,
       contractualEndDate ? new Date(contractualEndDate) : undefined,
       estimatedEndDate ? new Date(estimatedEndDate) : undefined

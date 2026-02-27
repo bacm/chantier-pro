@@ -20,18 +20,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Decision, DecisionType, Company } from '@/types';
+import { DecisionType, Company } from '@/types';
 import { createDecision } from '@/lib/projects';
 import { DECISION_TYPE_LABELS, calculateDecisionImpact } from '@/lib/scoring';
+import { useProjectOperations } from '@/hooks/useProjectOperations';
+import { useCurrentProject } from '@/contexts/ProjectContext';
 
 interface AddDecisionDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onDecisionAdded: (decision: Decision) => void;
   companies?: Company[];
 }
 
-export const AddDecisionDialog = ({ open, onOpenChange, onDecisionAdded, companies = [] }: AddDecisionDialogProps) => {
+export const AddDecisionDialog = ({ open, onOpenChange, companies = [] }: AddDecisionDialogProps) => {
+  const { projectId } = useCurrentProject();
+  const { addDecision } = useProjectOperations(projectId);
   const [type, setType] = useState<DecisionType>('modification');
   const [description, setDescription] = useState('');
   const [companyId, setCompanyId] = useState<string>('none');
@@ -67,7 +70,7 @@ export const AddDecisionDialog = ({ open, onOpenChange, onDecisionAdded, compani
       proofUrl.trim() || undefined
     );
     
-    onDecisionAdded(decision);
+    addDecision(decision);
 
     // Reset form
     setType('modification');

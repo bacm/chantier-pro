@@ -22,12 +22,13 @@ import {
 import { Project, PaymentApplication, PaymentStatus } from '@/types';
 import { generateId } from '@/lib/projects';
 import { getCompanyContractTotal, getNextPaymentNumber } from '@/lib/finance';
+import { useProjectOperations } from '@/hooks/useProjectOperations';
+import { useCurrentProject } from '@/contexts/ProjectContext';
 
 interface AddPaymentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   project: Project;
-  onPaymentAdded: (payment: PaymentApplication) => void;
   preselectedCompanyId?: string;
 }
 
@@ -35,9 +36,10 @@ export const AddPaymentDialog = ({
   open, 
   onOpenChange, 
   project, 
-  onPaymentAdded,
   preselectedCompanyId 
 }: AddPaymentDialogProps) => {
+  const { projectId } = useCurrentProject();
+  const { addPayment } = useProjectOperations(projectId);
   const [companyId, setCompanyId] = useState<string>(preselectedCompanyId || '');
   const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [period, setPeriod] = useState<string>(new Date().toISOString().slice(0, 7)); // YYYY-MM
@@ -106,7 +108,7 @@ export const AddPaymentDialog = ({
       hasRetenueGarantie: hasRetenue,
     };
 
-    onPaymentAdded(payment);
+    addPayment(payment);
     
     // Reset form partial
     setAmount('');

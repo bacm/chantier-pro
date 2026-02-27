@@ -1,6 +1,9 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import bcrypt from 'bcrypt';
+import { v4 as uuidv4 } from 'uuid';
+import { db } from './db/memory.js';
 import { organizationsRouter } from './routes/organizations.js';
 import { projectsRouter } from './routes/projects.js';
 import { authRouter } from './routes/auth.js';
@@ -10,12 +13,50 @@ import { authenticateToken } from './middleware/auth.js';
 
 dotenv.config();
 
+// Seed data
+const seed = async () => {
+  const hashedPassword = await bcrypt.hash('password123', 10);
+  const userId = uuidv4();
+  const orgId = uuidv4();
+
+  db.createUser({
+    id: userId,
+    email: 'admin@example.com',
+    password: hashedPassword,
+    name: 'Admin User',
+  });
+
+  db.createOrganization({
+    id: orgId,
+    name: 'Ma Première Organisation',
+    slug: 'ma-premiere-org',
+    description: 'Organisation par défaut pour le développement',
+  });
+
+  db.createMembership({
+    id: uuidv4(),
+    userId,
+    organizationId: orgId,
+    role: 'admin',
+    status: 'active',
+  });
+
+  console.log('Database seeded with admin@example.com / password123');
+};
+
+seed();
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  next();
+});
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:8080',
+  origin: true, // Reflect origin for easier debugging in dev
   credentials: true
 }));
 app.use(express.json());
@@ -42,6 +83,6 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
 });

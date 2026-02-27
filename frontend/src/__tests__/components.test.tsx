@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { ScoreDisplay } from '@/components/ScoreDisplay';
 import { ProjectCard } from '@/components/ProjectCard';
@@ -9,6 +10,7 @@ import { NavLink } from '@/components/NavLink';
 import { AddDecisionDialog } from '@/components/AddDecisionDialog';
 import { AuthGuard } from '@/auth/AuthGuard';
 import { Project, Company } from '@/types';
+import { ProjectProvider } from '@/contexts/ProjectContext';
 
 // Mock useAuth
 vi.mock('@/auth/AuthProvider', () => ({
@@ -23,7 +25,30 @@ vi.mock('@/auth/AuthProvider', () => ({
   }),
 }));
 
+// Mock useProjectOperations
+const mockAddDecision = vi.fn();
+vi.mock('@/hooks/useProjectOperations', () => ({
+  useProjectOperations: () => ({
+    addDecision: mockAddDecision,
+  }),
+}));
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { retry: false },
+  },
+});
+
+const renderWithProviders = (ui: React.ReactElement, project: Project) =>
+  render(
+    <QueryClientProvider client={queryClient}>
+      <ProjectProvider project={project}>
+        {ui}
+      </ProjectProvider>
+    </QueryClientProvider>
+  );
 
 const renderWithRouter = (ui: React.ReactElement, { initialEntries = ['/'] } = {}) =>
   render(<MemoryRouter initialEntries={initialEntries}>{ui}</MemoryRouter>);
@@ -232,63 +257,62 @@ describe('AddDecisionDialog', () => {
   const defaultProps = {
     open: true,
     onOpenChange: vi.fn(),
-    onDecisionAdded: vi.fn(),
   };
 
+  const project = makeProject();
+
   it('affiche le titre et désactive le bouton de soumission si description vide', () => {
-    render(<AddDecisionDialog {...defaultProps} />);
+    renderWithProviders(<AddDecisionDialog {...defaultProps} />, project);
     expect(screen.getByText('Ajouter une décision')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Ajouter la décision/i })).toBeDisabled();
   });
 
   it('active le bouton de soumission après saisie d\'une description', async () => {
-    render(<AddDecisionDialog {...defaultProps} />);
+    renderWithProviders(<AddDecisionDialog {...defaultProps} />, project);
     await userEvent.type(screen.getByPlaceholderText(/Décrivez brièvement/i), 'Modification du plan');
     expect(screen.getByRole('button', { name: /Ajouter la décision/i })).not.toBeDisabled();
   });
 
   it('appelle onOpenChange(false) au clic sur Annuler', async () => {
     const onOpenChange = vi.fn();
-    render(<AddDecisionDialog {...defaultProps} onOpenChange={onOpenChange} />);
+    renderWithProviders(<AddDecisionDialog {...defaultProps} onOpenChange={onOpenChange} />, project);
     await userEvent.click(screen.getByRole('button', { name: /Annuler/i }));
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
   it('révèle le champ montant quand "Impact financier" est activé', async () => {
-    render(<AddDecisionDialog {...defaultProps} />);
+    renderWithProviders(<AddDecisionDialog {...defaultProps} />, project);
     expect(screen.queryByPlaceholderText('0.00')).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('switch', { name: /Impact financier/i }));
     expect(screen.getByPlaceholderText('0.00')).toBeInTheDocument();
   });
 
   it('révèle les champs de preuve quand "Preuve jointe" est activé', async () => {
-    render(<AddDecisionDialog {...defaultProps} />);
+    renderWithProviders(<AddDecisionDialog {...defaultProps} />, project);
     expect(screen.queryByPlaceholderText(/Photo fissure/i)).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('switch', { name: /Preuve jointe/i }));
     expect(screen.getByPlaceholderText(/Photo fissure/i)).toBeInTheDocument();
   });
 
   it('soumet la décision et ferme la dialog', async () => {
-    const onDecisionAdded = vi.fn();
     const onOpenChange = vi.fn();
-    render(
-      <AddDecisionDialog {...defaultProps} onDecisionAdded={onDecisionAdded} onOpenChange={onOpenChange} />
+    renderWithProviders(
+      <AddDecisionDialog {...defaultProps} onOpenChange={onOpenChange} />, 
+      project
     );
 
     await userEvent.type(screen.getByPlaceholderText(/Décrivez brièvement/i), 'Changement de matériaux');
     await userEvent.click(screen.getByRole('button', { name: /Ajouter la décision/i }));
 
-    expect(onDecisionAdded).toHaveBeenCalledOnce();
-    const [decision] = onDecisionAdded.mock.calls[0];
+    expect(mockAddDecision).toHaveBeenCalledOnce();
+    const [decision] = mockAddDecision.mock.calls[0];
     expect(decision.description).toBe('Changement de matériaux');
     expect(decision.type).toBe('modification');
-    expect(decision.id).toBeTruthy();
-    expect(decision.createdAt).toBeInstanceOf(Date);
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
   it('affiche l\'aperçu d\'impact (négatif par défaut, positif avec validation + preuve)', async () => {
-    render(<AddDecisionDialog {...defaultProps} />);
+    renderWithProviders(<AddDecisionDialog {...defaultProps} />, project);
     expect(screen.getByText(/Impact négatif/i)).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('switch', { name: /Validation écrite/i }));
@@ -301,10 +325,22 @@ describe('AddDecisionDialog', () => {
   });
 
   it('affiche/masque le sélecteur d\'entreprise selon la prop companies', () => {
-    const { rerender } = render(<AddDecisionDialog {...defaultProps} companies={testCompanies} />);
+    const { rerender } = render(
+      <QueryClientProvider client={queryClient}>
+        <ProjectProvider project={project}>
+          <AddDecisionDialog {...defaultProps} companies={testCompanies} />
+        </ProjectProvider>
+      </QueryClientProvider>
+    );
     expect(screen.getByText(/Entreprise concernée/i)).toBeInTheDocument();
 
-    rerender(<AddDecisionDialog {...defaultProps} companies={[]} />);
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <ProjectProvider project={project}>
+          <AddDecisionDialog {...defaultProps} companies={[]} />
+        </ProjectProvider>
+      </QueryClientProvider>
+    );
     expect(screen.queryByText(/Entreprise concernée/i)).not.toBeInTheDocument();
   });
 });
@@ -313,7 +349,7 @@ describe('AddDecisionDialog', () => {
 
 describe('AuthGuard', () => {
   it('affiche ses enfants sans modification', () => {
-    render(
+    renderWithRouter(
       <AuthGuard>
         <span>Contenu protégé</span>
         <span>Deuxième enfant</span>

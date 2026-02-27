@@ -1,5 +1,5 @@
 import { Decision } from '@/types';
-import { formatDateTime } from '@/lib/projects';
+import { formatDateTime } from '@/lib/utils';
 import { DECISION_TYPE_LABELS } from '@/lib/scoring';
 import { FileText, AlertTriangle, Check, Euro, Clock, ExternalLink, Paperclip } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';

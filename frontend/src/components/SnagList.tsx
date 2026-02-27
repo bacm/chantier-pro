@@ -2,7 +2,7 @@ import { Snag, Company, Project } from '@/types';
 import { CheckCircle2, Circle, MapPin, Building2, Calendar, ClipboardCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { formatDate } from '@/lib/projects';
+import { formatDate } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 
 interface SnagListProps {

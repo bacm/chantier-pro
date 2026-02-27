@@ -4,7 +4,8 @@ import { ArrowLeft, Plus, Download, Shield, AlertTriangle, TrendingUp, TrendingD
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Project, Decision, Company, SiteReport, Snag, PaymentApplication } from '@/types';
-import { formatDate, getProjectTypeLabel, getProjectStatusLabel, updateProjectPlanning } from '@/lib/projects';
+import { getProjectTypeLabel, getProjectStatusLabel, updateProjectPlanning } from '@/lib/projects';
+import { formatDate } from '@/lib/utils';
 import { generateProjectStatusPDF, generateAcceptancePDF, generatePaymentCertificatePDF } from '@/lib/pdf';
 import {
   getRiskLevelColor,
@@ -31,26 +32,13 @@ import { toast } from 'sonner';
 interface ProjectDetailProps {
   project: Project;
   onBack: () => void;
-  onDecisionAdded: (decision: Decision) => void;
-  onCompanyAdded: (company: Company) => void;
-  onReportAdded: (report: SiteReport) => void;
-  onPlanningUpdated: (startDate?: Date, contractualEndDate?: Date, estimatedEndDate?: Date) => void;
-  onSnagAdded: (snag: Snag) => void;
-  onSnagToggled: (snagId: string) => void;
-  onPaymentAdded: (payment: PaymentApplication) => void;
 }
 
 export const ProjectDetail = ({ 
   project, 
-  onBack, 
-  onDecisionAdded, 
-  onCompanyAdded, 
-  onReportAdded, 
-  onPlanningUpdated, 
-  onSnagAdded, 
-  onSnagToggled,
-  onPaymentAdded 
+  onBack,
 }: ProjectDetailProps) => {
+  const { toggleSnagStatus } = useProjectOperations(project.id);
   const [showAddDecision, setShowAddDecision] = useState(false);
   const [showAddCompany, setShowAddCompany] = useState(false);
   const [showAddReport, setShowAddReport] = useState(false);
@@ -94,21 +82,6 @@ export const ProjectDetail = ({
   const handleExportSnags = () => {
     generateAcceptancePDF(project);
     toast.success('Liste des réserves générée');
-  };
-
-  const handleDecisionAdded = (decision: Decision) => {
-    onDecisionAdded(decision);
-    setShowAddDecision(false);
-  };
-
-  const handleCompanyAdded = (company: Company) => {
-    onCompanyAdded(company);
-    setShowAddCompany(false);
-  };
-
-  const handleReportAdded = (report: SiteReport) => {
-    onReportAdded(report);
-    setShowAddReport(false);
   };
 
   return (
@@ -328,7 +301,7 @@ export const ProjectDetail = ({
             <div className="bg-card border border-border rounded-b-lg p-4">
               <SnagList 
                 project={project} 
-                onToggleSnag={onSnagToggled} 
+                onToggleSnag={toggleSnagStatus} 
                 onAddSnag={() => setShowAddSnag(true)} 
               />
             </div>
@@ -339,41 +312,35 @@ export const ProjectDetail = ({
         <AddDecisionDialog
           open={showAddDecision}
           onOpenChange={setShowAddDecision}
-          onDecisionAdded={handleDecisionAdded}
           companies={project.companies}
         />
         
         <AddCompanyDialog
           open={showAddCompany}
           onOpenChange={setShowAddCompany}
-          onCompanyAdded={handleCompanyAdded}
         />
 
         <AddReportDialog
           open={showAddReport}
           onOpenChange={setShowAddReport}
-          onReportAdded={handleReportAdded}
           companies={project.companies}
         />
 
         <AddPlanningDialog
           open={showEditPlanning}
           onOpenChange={setShowEditPlanning}
-          onPlanningUpdated={onPlanningUpdated}
           project={project}
         />
 
         <AddSnagDialog
           open={showAddSnag}
           onOpenChange={setShowAddSnag}
-          onSnagAdded={onSnagAdded}
           companies={project.companies}
         />
         
         <AddPaymentDialog
           open={showAddPayment}
           onOpenChange={setShowAddPayment}
-          onPaymentAdded={(p) => { onPaymentAdded(p); setShowAddPayment(false); }}
           project={project}
         />
       </div>

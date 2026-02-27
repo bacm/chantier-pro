@@ -12,16 +12,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Company } from '@/types';
 import { createCompany } from '@/lib/projects';
+import { useProjectOperations } from '@/hooks/useProjectOperations';
+import { useCurrentProject } from '@/contexts/ProjectContext';
 
 interface AddCompanyDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCompanyAdded: (company: Company) => void;
 }
 
-export const AddCompanyDialog = ({ open, onOpenChange, onCompanyAdded }: AddCompanyDialogProps) => {
+export const AddCompanyDialog = ({ open, onOpenChange }: AddCompanyDialogProps) => {
+  const { projectId } = useCurrentProject();
+  const { addCompany } = useProjectOperations(projectId);
   const [name, setName] = useState('');
   const [trade, setTrade] = useState('');
   const [contactName, setContactName] = useState('');
@@ -46,7 +48,7 @@ export const AddCompanyDialog = ({ open, onOpenChange, onCompanyAdded }: AddComp
       contractAmount ? parseFloat(contractAmount) : undefined
     );
     
-    onCompanyAdded(company);
+    addCompany(company);
 
     // Reset form
     setName('');

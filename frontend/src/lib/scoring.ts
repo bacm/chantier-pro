@@ -1,4 +1,4 @@
-import { Decision, DecisionType, Project, RiskLevel } from '@/types';
+import { Decision, DecisionType, Project, RiskLevel, ProjectStatus, ProjectCalibration, CalibrationResponse } from '@/types';
 
 // Weight of each decision type (higher = more critical)
 export const DECISION_TYPE_WEIGHTS: Record<DecisionType, number> = {
@@ -16,6 +16,135 @@ export const DECISION_TYPE_LABELS: Record<DecisionType, string> = {
   counsel: 'Devoir de conseil / Alerte',
   financial: 'Impact financier / Avenant',
   reception: 'Réception / Livraison',
+};
+
+// Score response helper
+const scoreResponse = (response: CalibrationResponse, yesPoints: number, noPoints: number): number => {
+  switch (response) {
+    case 'yes': return yesPoints;
+    case 'no': return noPoints;
+    case 'unknown': return Math.floor(noPoints / 2); // Uncertainty = partial risk
+  }
+};
+
+// Contractual score (Step 2)
+const calculateContractualScore = (calibration: ProjectCalibration): number => {
+  let score = 0;
+  score += scoreResponse(calibration.contractSigned, 5, -10);
+  score += scoreResponse(calibration.scopeDefined, 5, -8);
+  score += scoreResponse(calibration.crFormalized, 3, -5);
+  score += scoreResponse(calibration.writtenValidationRequired, 5, -7);
+  return score;
+};
+
+// New project score (Step 3 - Démarrage)
+const calculateNewProjectScore = (calibration: ProjectCalibration): number => {
+  let score = 0;
+  if (calibration.insuranceVerified) {
+    // Insurances are vital for MOE protection
+    score += scoreResponse(calibration.insuranceVerified, 8, -15);
+  }
+  if (calibration.docFiled) {
+    // DOC is a legal requirement to start
+    score += scoreResponse(calibration.docFiled, 4, -8);
+  }
+  if (calibration.pcDisplayed) {
+    // PC display is a risk for third-party appeals
+    score += scoreResponse(calibration.pcDisplayed, 3, -6);
+  }
+  return score;
+};
+
+// Ongoing project score (Step 3)
+const calculateOngoingProjectScore = (calibration: ProjectCalibration): number => {
+  let score = 0;
+  if (calibration.decisionsWithoutValidation) {
+    // Decisions without validation = major risk
+    score += scoreResponse(calibration.decisionsWithoutValidation, -15, 5);
+  }
+  if (calibration.workStarted) {
+    // Work started = can't go back
+    score += scoreResponse(calibration.workStarted, -5, 0);
+  }
+  if (calibration.oralChanges) {
+    // Oral changes = very risky
+    score += scoreResponse(calibration.oralChanges, -12, 5);
+  }
+  return score;
+};
+
+// Documentary maturity score (Step 4)
+const calculateDocumentaryScore = (calibration: ProjectCalibration): number => {
+  let score = 0;
+  score += scoreResponse(calibration.proofsCentralized, 5, -8);
+  score += scoreResponse(calibration.decisionsTraceable, 5, -10);
+  score += scoreResponse(calibration.financialImpactsDocumented, 4, -6);
+  return score;
+};
+
+// Calculate initial score based on calibration
+export const calculateInitialScore = (
+  status: ProjectStatus,
+  projectType: Project['projectType'],
+  calibration: ProjectCalibration
+): number => {
+  // Base score depends on project status
+  let score = status === 'new' ? 75 : 50;
+  
+  // Project type risk modifier
+  const typeModifier = {
+    individual: 0,
+    renovation: -5, // Slightly more risky
+    tertiary: -3,
+  };
+  score += typeModifier[projectType];
+  
+  // Contractual calibration scoring
+  const contractualScore = calculateContractualScore(calibration);
+  score += contractualScore;
+  
+  // Status-specific scoring
+  if (status === 'new') {
+    score += calculateNewProjectScore(calibration);
+  }
+  else {
+    score += calculateOngoingProjectScore(calibration);
+  }
+  
+  // Documentary maturity scoring
+  score += calculateDocumentaryScore(calibration);
+  
+  // Clamp between 0 and 100
+  return Math.max(0, Math.min(100, Math.round(score)));
+};
+
+// Calculate score based on initial calibration + decisions
+export const calculateProjectScoreFromDecisions = (project: Project): { score: number; riskLevel: RiskLevel } => {
+  const baseScore = project.initialScore;
+  
+  if (project.decisions.length === 0) {
+    return {
+      score: baseScore,
+      riskLevel: getScoreRiskLevel(baseScore),
+    };
+  }
+
+  // Calculate cumulative impact from decisions
+  const totalImpact = project.decisions.reduce((sum, d) => sum + d.scoreImpact, 0);
+  
+  // Normalize impact
+  const normalizedImpact = totalImpact / (project.decisions.length * 0.5);
+  
+  // Apply impact to base score
+  let finalScore = baseScore + normalizedImpact;
+  
+  // Clamp between 0 and 100
+  finalScore = Math.max(0, Math.min(100, Math.round(finalScore)));
+  
+  return {
+    score: finalScore,
+    riskLevel: getScoreRiskLevel(finalScore),
+  };
 };
 
 // Calculate the impact of a single decision on the score
