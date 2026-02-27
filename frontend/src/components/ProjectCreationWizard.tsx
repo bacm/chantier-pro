@@ -6,8 +6,8 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Progress } from '@/components/ui/progress';
 import { Project, ProjectStatus, ProjectCalibration, CalibrationResponse } from '@/types';
-import { createProjectFromCalibration, calculateInitialScore } from '@/lib/projects';
-import { getScoreRiskLevel, getRiskLevelLabel, getRiskLevelColor } from '@/lib/scoring';
+import { createProjectFromCalibration } from '@/lib/projects';
+import { getScoreRiskLevel, getRiskLevelLabel, getRiskLevelColor, calculateInitialScore } from '@/lib/scoring';
 import { cn } from '@/lib/utils';
 
 interface ProjectCreationWizardProps {

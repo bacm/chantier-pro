@@ -3,7 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
-import { db } from './db/memory.js';
+import { db } from './db/postgres.js';
 import { organizationsRouter } from './routes/organizations.js';
 import { projectsRouter } from './routes/projects.js';
 import { authRouter } from './routes/auth.js';
@@ -13,27 +13,33 @@ import { authenticateToken } from './middleware/auth.js';
 
 dotenv.config();
 
-// Seed data
+// Seed data (idempotent — skips if admin already exists)
 const seed = async () => {
+  const existing = await db.getUserByEmail('admin@example.com');
+  if (existing) {
+    console.log('Database already seeded, skipping.');
+    return;
+  }
+
   const hashedPassword = await bcrypt.hash('password123', 10);
   const userId = uuidv4();
   const orgId = uuidv4();
 
-  db.createUser({
+  await db.createUser({
     id: userId,
     email: 'admin@example.com',
     password: hashedPassword,
     name: 'Admin User',
   });
 
-  db.createOrganization({
+  await db.createOrganization({
     id: orgId,
     name: 'Ma Première Organisation',
     slug: 'ma-premiere-org',
     description: 'Organisation par défaut pour le développement',
   });
 
-  db.createMembership({
+  await db.createMembership({
     id: uuidv4(),
     userId,
     organizationId: orgId,
@@ -43,8 +49,6 @@ const seed = async () => {
 
   console.log('Database seeded with admin@example.com / password123');
 };
-
-seed();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
