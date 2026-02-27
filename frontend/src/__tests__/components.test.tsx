@@ -10,6 +10,19 @@ import { AddDecisionDialog } from '@/components/AddDecisionDialog';
 import { AuthGuard } from '@/auth/AuthGuard';
 import { Project, Company } from '@/types';
 
+// Mock useAuth
+vi.mock('@/auth/AuthProvider', () => ({
+  useAuth: () => ({
+    isAuthenticated: true,
+    isLoading: false,
+    user: { id: 'user-1', name: 'Test User', email: 'test@example.com' },
+    organizations: [],
+    token: 'mock-token',
+    login: vi.fn(),
+    logout: vi.fn(),
+  }),
+}));
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const renderWithRouter = (ui: React.ReactElement, { initialEntries = ['/'] } = {}) =>

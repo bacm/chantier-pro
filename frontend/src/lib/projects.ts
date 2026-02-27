@@ -3,7 +3,7 @@ import { calculateDecisionImpact, getScoreRiskLevel } from './scoring';
 
 // Generate unique IDs
 export const generateId = (): string => {
-  return Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
+  return crypto.randomUUID();
 };
 
 // Format date for display
@@ -143,65 +143,6 @@ export const calculateInitialScore = (
   
   // Clamp between 0 and 100
   return Math.max(0, Math.min(100, Math.round(score)));
-};
-
-// Local storage helpers
-const STORAGE_KEY = 'chantier-audit-projects';
-
-export const loadProjects = (): Project[] => {
-  try {
-    const data = localStorage.getItem(STORAGE_KEY);
-    if (!data) return [];
-    const projects = JSON.parse(data);
-    return projects.map((p: any) => ({
-      ...p,
-      createdAt: new Date(p.createdAt),
-      startDate: p.startDate ? new Date(p.startDate) : undefined,
-      contractualEndDate: p.contractualEndDate ? new Date(p.contractualEndDate) : undefined,
-      estimatedEndDate: p.estimatedEndDate ? new Date(p.estimatedEndDate) : undefined,
-      decisions: (p.decisions || []).map((d: any) => ({
-        ...d,
-        createdAt: new Date(d.createdAt),
-      })),
-      reports: (p.reports || []).map((r: any) => ({
-        ...r,
-        date: new Date(r.date),
-        createdAt: new Date(r.createdAt),
-        isValidatedBadWeather: r.isValidatedBadWeather || false,
-        observations: r.observations || [],
-      })),
-      snags: (p.snags || []).map((s: any) => ({
-        ...s,
-        foundDate: new Date(s.foundDate),
-        clearedDate: s.clearedDate ? new Date(s.clearedDate) : undefined,
-      })),
-      payments: (p.payments || []).map((pay: any) => ({
-        ...pay,
-        date: new Date(pay.date),
-        period: new Date(pay.period),
-      })),
-      companies: p.companies || [],
-      status: p.status || 'new',
-      calibration: p.calibration || {
-        contractSigned: 'unknown',
-        scopeDefined: 'unknown',
-        crFormalized: 'unknown',
-        writtenValidationRequired: 'unknown',
-        proofsCentralized: 'unknown',
-        decisionsTraceable: 'unknown',
-        financialImpactsDocumented: 'unknown',
-      },
-      initialScore: p.initialScore ?? p.currentScore ?? 50,
-      currentScore: p.currentScore ?? 50,
-      currentRiskLevel: p.currentRiskLevel ?? 'medium',
-    }));
-  } catch {
-    return [];
-  }
-};
-
-export const saveProjects = (projects: Project[]): void => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
 };
 
 // Create project from calibration wizard

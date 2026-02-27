@@ -1,6 +1,7 @@
 import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from '../db/memory.js';
+import { calculateInitialScore, calculateProjectScoreFromDecisions, calculateDecisionImpact } from '../lib/scoring.js';
 
 const router = express.Router();
 
@@ -107,6 +108,12 @@ router.post('/organization/:orgId', (req, res) => {
     
     const projectData = req.body;
     
+    const initialScore = calculateInitialScore(
+      projectData.status || 'new',
+      projectData.projectType || 'individual',
+      projectData.calibration
+    );
+    
     const project = {
       id: uuidv4(),
       organizationId: orgId,
@@ -127,9 +134,9 @@ router.post('/organization/:orgId', (req, res) => {
       reports: projectData.reports || [],
       snags: projectData.snags || [],
       payments: projectData.payments || [],
-      initialScore: projectData.initialScore || 50,
-      currentScore: projectData.currentScore || 50,
-      currentRiskLevel: projectData.currentRiskLevel || 'medium',
+      initialScore: initialScore,
+      currentScore: initialScore,
+      currentRiskLevel: calculateProjectScoreFromDecisions({ initialScore, decisions: projectData.decisions || [] }).riskLevel,
     };
     
     db.createProject(project);
@@ -174,6 +181,35 @@ router.patch('/:id', (req, res) => {
     if (updates.startDate) updates.startDate = new Date(updates.startDate);
     if (updates.contractualEndDate) updates.contractualEndDate = new Date(updates.contractualEndDate);
     if (updates.estimatedEndDate) updates.estimatedEndDate = new Date(updates.estimatedEndDate);
+
+    // If decisions are updated, ensure each has its scoreImpact calculated
+    if (updates.decisions) {
+      updates.decisions = updates.decisions.map(d => ({
+        ...d,
+        scoreImpact: calculateDecisionImpact(d)
+      }));
+    }
+
+    // Prepare projected project state to calculate scores
+    const projectedProject = {
+      ...project,
+      ...updates
+    };
+
+    // Recalculate initial score if calibration or project metadata changed
+    if (updates.calibration || updates.status || updates.projectType) {
+      projectedProject.initialScore = calculateInitialScore(
+        projectedProject.status,
+        projectedProject.projectType,
+        projectedProject.calibration
+      );
+      updates.initialScore = projectedProject.initialScore;
+    }
+
+    // Recalculate current score and risk level
+    const { score, riskLevel } = calculateProjectScoreFromDecisions(projectedProject);
+    updates.currentScore = score;
+    updates.currentRiskLevel = riskLevel;
     
     const updated = db.updateProject(req.params.id, updates);
     

@@ -1,5 +1,5 @@
 import { useAuth } from './AuthProvider';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 
 interface Props {
@@ -8,6 +8,7 @@ interface Props {
 
 export const AuthGuard = ({ children }: Props) => {
   const { isAuthenticated, isLoading } = useAuth();
+  const location = useLocation();
   const [hasCheckedAuth, setHasCheckedAuth] = useState(false);
 
   useEffect(() => {
@@ -22,7 +23,7 @@ export const AuthGuard = ({ children }: Props) => {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/auth" replace />; // Redirect to login page
+    return <Navigate to="/auth" state={{ from: location }} replace />; // Redirect to login page
   }
 
   return <>{children}</>;
