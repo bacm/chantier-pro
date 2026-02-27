@@ -90,7 +90,7 @@ Traçabilité exhaustive classée par types :
 ### Installation rapide
 ```bash
 # 1. Cloner le projet
-git clone [url-du-repo]
+git clone
 
 # 2. Lancer le backend
 cd server
